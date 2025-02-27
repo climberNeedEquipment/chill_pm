@@ -168,7 +168,7 @@ pub struct PlaceOrder {
     /// Side.
     pub side: OrderSide,
     /// Position side.
-    pub position_side: PositionSide,
+    pub position_side: Option<PositionSide>,
     /// Order type.
     #[serde(rename = "type")]
     pub order_type: OrderType,
@@ -274,27 +274,36 @@ pub enum TimeInForce {
 
 pub async fn place_binance_order(
     base_url: &str,
-    order_kind: OrderKind,
+    key: &BinanceKey,
     symbol: &str,
     side: OrderSide,
-    position_side: PositionSide,
-    key: &BinanceKey,
+    quantity: Option<Decimal>,
+    price: Option<Decimal>,
+    stop_price: Option<Decimal>,
 ) -> Result<UsdMarginFuturesOrder> {
     // Create an empty parameter map to sign
+    let (order_type, time_in_force, close_position) = if price.is_some() {
+        (OrderType::Limit, Some(TimeInForce::Gtc), Some(false))
+    } else if stop_price.is_some() {
+        (OrderType::StopMarket, None, Some(true))
+    } else {
+        (OrderType::Market, None, Some(false))
+    };
+
     let place_order_params = PlaceOrder {
         symbol: format!("{}{}", symbol.to_uppercase(), "USDT"),
-        side: side,
-        position_side: position_side,
-        order_type: OrderType::Market,
+        side,
+        position_side: None,
+        order_type,
         reduce_only: None,
-        quantity: Some(Decimal::from(1)),
-        price: None,
+        quantity: quantity,
+        price,
         new_client_order_id: None,
-        stop_price: None,
-        close_position: None,
+        stop_price,
+        close_position,
         activation_price: None,
         callback_rate: None,
-        time_in_force: None,
+        time_in_force,
         working_type: None,
         price_protect: None,
     };
@@ -305,21 +314,18 @@ pub async fn place_binance_order(
         .map_err(|e| anyhow::anyhow!("Error signing parameters: {}", e))?;
 
     // Construct the full URL with the signed query string
-    let url = format!(
-        "{}/fapi/v1/order?{}",
-        base_url,
-        serde_urlencoded::to_string(signed_params)?
-    );
-
+    let url = format!("{}/fapi/v1/order", base_url);
+    let hyper_body = serde_urlencoded::to_string(signed_params)?;
     // Create a client and set the necessary headers
     let client = Client::new();
     let response = client
-        .get(&url)
+        .post(&url)
         .header(
             "X-MBX-APIKEY",
             HeaderValue::from_str(&key.api_key)
                 .map_err(|e| anyhow::anyhow!("Invalid API key: {}", e))?,
         )
+        .body(hyper_body)
         .send()
         .await?;
 
@@ -335,7 +341,7 @@ pub async fn place_binance_order(
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_get_binance_portfolio() -> Result<()> {
+async fn test_place_binance_order() -> Result<()> {
     dotenv().unwrap();
     let binance_key = BinanceKey {
         api_key: env::var("BINANCE_API_KEY").expect("BINANCE_API_KEY must be set in .env"),
@@ -347,16 +353,30 @@ async fn test_get_binance_portfolio() -> Result<()> {
         } else {
             "https://fapi.binance.com"
         };
+
+    // market order
+    // let order = place_binance_order(
+    //     &binance_base_url,
+    //     &binance_key,
+    //     "ETH",
+    //     OrderSide::Buy,
+    //     Some(Decimal::from(1)),
+    //     Some(Decimal::from_i128_with_scale(260812i128, 2)),
+    //     None,
+    // )
+    // .await?;
+
+    // market close
     let order = place_binance_order(
         &binance_base_url,
-        OrderKind::Market,
-        "ETH",
-        OrderSide::Buy,
-        PositionSide::Long,
         &binance_key,
+        "ETH",
+        OrderSide::Sell,
+        None,
+        None,
+        Some(Decimal::from_i128_with_scale(262312i128, 2)),
     )
     .await?;
-
     println!("{:?}", order);
     Ok(())
 }
