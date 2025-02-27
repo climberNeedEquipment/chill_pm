@@ -1,3 +1,4 @@
+use crate::executor::error::{ExchangeError, RestError};
 use crate::utils::sign::BinanceKey;
 use anyhow::Result;
 use dotenv::dotenv;
@@ -23,16 +24,27 @@ pub enum PositionSide {
     Both,
 }
 
-// /// Order types.
-// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// pub enum OrderKind {
-//     /// Market.
-//     Market,
-//     /// Limit.
-//     Limit(Decimal, TimeInForce),
-//     /// Post-Only.
-//     PostOnly(Decimal),
-// }
+/// Order types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OrderKind {
+    /// Market.
+    Market,
+    /// Limit.
+    Limit(Decimal, TimeInForceKind),
+    /// Post-Only.
+    PostOnly(Decimal),
+}
+
+/// Time in force.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimeInForceKind {
+    /// Good-Til-Cancelled.
+    GoodTilCancelled,
+    /// Fill-Or-Kill.
+    FillOrKill,
+    /// Immediate-Or-Cancel.
+    ImmediateOrCancel,
+}
 
 /// Order Status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,18 +92,18 @@ pub enum Status {
     NewAdl,
 }
 
-// impl TryFrom<Status> for OrderStatus {
-//     type Error = ExchangeError;
+impl TryFrom<Status> for OrderStatus {
+    type Error = ExchangeError;
 
-//     fn try_from(status: Status) -> Result<Self, Self::Error> {
-//         let status = match status {
-//             Status::New | Status::PartiallyFilled => OrderStatus::Pending,
-//             Status::Canceled | Status::Expired | Status::Filled => OrderStatus::Finished,
-//             Status::NewAdl | Status::NewInsurance => OrderStatus::Pending,
-//         };
-//         Ok(status)
-//     }
-// }
+    fn try_from(status: Status) -> Result<Self, Self::Error> {
+        let status = match status {
+            Status::New | Status::PartiallyFilled => OrderStatus::Pending,
+            Status::Canceled | Status::Expired | Status::Filled => OrderStatus::Finished,
+            Status::NewAdl | Status::NewInsurance => OrderStatus::Pending,
+        };
+        Ok(status)
+    }
+}
 
 impl Default for OrderState {
     fn default() -> Self {
@@ -256,98 +268,95 @@ pub enum TimeInForce {
     Ioc,
     /// Fill-Or-Kill.
     Fok,
+    /// Post-Only.
+    Gtx,
 }
-// impl<'a> TryFrom<&'a PlaceOrder> for PlaceOrder {
-//     type Error = RestError;
 
-//     fn try_from(req: &'a PlaceOrder) -> Result<Self, Self::Error> {
-//         let place = req.place;
-//         let side = if place.size.is_zero() {
-//             return Err(RestError::PlaceZeroSize);
-//         } else if place.size.is_sign_positive() {
-//             OrderSide::Buy
-//         } else {
-//             OrderSide::Sell
-//         };
-//         let (order_type, price, tif) = match place.kind {
-//             OrderKind::Market => (OrderType::Market, None, None),
-//             OrderKind::Limit(price, tif) => (OrderType::Limit, Some(price), tif),
-//             OrderKind::PostOnly(price) => (OrderType::Limit, Some(price), Some(TimeInForce::Gtx)),
-//         };
-//         Ok(Self {
-//             symbol: req.opts.instrument().to_uppercase(),
-//             side,
-//             position_side: PositionSide::Both,
-//             order_type,
-//             reduce_only: None,
-//             quantity: Some(place.size.abs()),
-//             price,
-//             new_client_order_id: req.opts.client_id().map(|s| s.to_string()),
-//             stop_price: None,
-//             close_position: None,
-//             activation_price: None,
-//             callback_rate: None,
-//             time_in_force: tif,
-//             working_type: None,
-//             price_protect: None,
-//         })
-//     }
-// }
+pub async fn place_binance_order(
+    base_url: &str,
+    order_kind: OrderKind,
+    symbol: &str,
+    side: OrderSide,
+    position_side: PositionSide,
+    key: &BinanceKey,
+) -> Result<UsdMarginFuturesOrder> {
+    // Create an empty parameter map to sign
+    let place_order_params = PlaceOrder {
+        symbol: format!("{}{}", symbol.to_uppercase(), "USDT"),
+        side: side,
+        position_side: position_side,
+        order_type: OrderType::Market,
+        reduce_only: None,
+        quantity: Some(Decimal::from(1)),
+        price: None,
+        new_client_order_id: None,
+        stop_price: None,
+        close_position: None,
+        activation_price: None,
+        callback_rate: None,
+        time_in_force: None,
+        working_type: None,
+        price_protect: None,
+    };
 
-// pub async fn place_binance_order(base_url: &str, key: &BinanceKey) -> Result<AccountInfo> {
-//     // Create an empty parameter map to sign
-//     let params: HashMap<String, String> = HashMap::new();
+    // Sign the parameters
+    let signed_params = key
+        .sign(place_order_params)
+        .map_err(|e| anyhow::anyhow!("Error signing parameters: {}", e))?;
 
-//     // Sign the parameters
-//     let signed_params = key
-//         .sign(params)
-//         .map_err(|e| anyhow::anyhow!("Error signing parameters: {}", e))?;
+    // Construct the full URL with the signed query string
+    let url = format!(
+        "{}/fapi/v1/order?{}",
+        base_url,
+        serde_urlencoded::to_string(signed_params)?
+    );
 
-//     // Construct the full URL with the signed query string
-//     let url = format!(
-//         "{}/fapi/v3/account?{}",
-//         base_url,
-//         serde_urlencoded::to_string(signed_params)?
-//     );
+    // Create a client and set the necessary headers
+    let client = Client::new();
+    let response = client
+        .get(&url)
+        .header(
+            "X-MBX-APIKEY",
+            HeaderValue::from_str(&key.api_key)
+                .map_err(|e| anyhow::anyhow!("Invalid API key: {}", e))?,
+        )
+        .send()
+        .await?;
 
-//     // Create a client and set the necessary headers
-//     let client = Client::new();
-//     let response = client
-//         .get(&url)
-//         .header(
-//             "X-MBX-APIKEY",
-//             HeaderValue::from_str(&key.api_key)
-//                 .map_err(|e| anyhow::anyhow!("Invalid API key: {}", e))?,
-//         )
-//         .send()
-//         .await?;
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!(
+            "Failed to get order status: HTTP {}",
+            response.status()
+        ));
+    }
 
-//     if !response.status().is_success() {
-//         return Err(anyhow::anyhow!(
-//             "Failed to fetch account info: HTTP {}",
-//             response.status()
-//         ));
-//     }
+    let order: UsdMarginFuturesOrder = response.json().await?;
+    Ok(order)
+}
 
-//     let account_info: AccountInfo = response.json().await?;
-//     Ok(account_info)
-// }
+#[tokio::test(flavor = "multi_thread")]
+async fn test_get_binance_portfolio() -> Result<()> {
+    dotenv().unwrap();
+    let binance_key = BinanceKey {
+        api_key: env::var("BINANCE_API_KEY").expect("BINANCE_API_KEY must be set in .env"),
+        secret_key: env::var("BINANCE_API_SECRET").expect("BINANCE_SECRET_KEY must be set in .env"),
+    };
+    let binance_base_url =
+        if env::var("ENVIRONMENT").expect("BINANCE_ENV must be set in .env") == "test" {
+            "https://testnet.binancefuture.com"
+        } else {
+            "https://fapi.binance.com"
+        };
+    let order = place_binance_order(
+        &binance_base_url,
+        OrderKind::Market,
+        "ETH",
+        OrderSide::Buy,
+        PositionSide::Long,
+        &binance_key,
+    )
+    .await?;
 
-// #[tokio::test(flavor = "multi_thread")]
-// async fn test_get_binance_portfolio() -> Result<()> {
-//     dotenv().unwrap();
-//     let binance_key = BinanceKey {
-//         api_key: env::var("BINANCE_API_KEY").expect("BINANCE_API_KEY must be set in .env"),
-//         secret_key: env::var("BINANCE_API_SECRET").expect("BINANCE_SECRET_KEY must be set in .env"),
-//     };
-//     let binance_base_url =
-//         if env::var("ENVIRONMENT").expect("BINANCE_ENV must be set in .env") == "test" {
-//             "https://testnet.binancefuture.com"
-//         } else {
-//             "https://fapi.binance.com"
-//         };
-//     let portfolio = place_binance_order(&binance_base_url, &binance_key).await?;
-
-//     println!("{:?}", portfolio);
-//     Ok(())
-// }
+    println!("{:?}", order);
+    Ok(())
+}
