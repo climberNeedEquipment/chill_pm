@@ -1,6 +1,7 @@
+use alloy::primitives::{utils::parse_units, Address, Bytes, U256};
 use anyhow::Result;
-use bigint::U256;
 use dotenv::dotenv;
+use positions::prelude::Str;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
@@ -103,10 +104,56 @@ pub struct SingleSwapInfo {
     pub pool: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildRequestBody {
+    from: String,
+    slippage_bps: String,
+    permit: Option<PermitSingle>,
+    permit_signature: String,
+    dex_agg: AggregateMergeSwapInfo,
+    cycles: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermitSingle {
+    details: PermitDetails,
+    spender: String,
+    sig_deadline: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermitDetails {
+    token: String,
+    amount: String,
+    expiration: u64,
+    nonce: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BuildResponse {
+    result: Transaction,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Transaction {
+    from: Address,
+    to: Address,
+    value: U256,
+    data: Bytes,
+    gas_limit: u64,
+    estimated_gas: u64,
+    error: Option<String>,
+}
+
 fn convert_chain_id_to_name(chain_id: u64) -> String {
     match chain_id {
         1 => "mainnet".to_string(),
         8453 => "base".to_string(),
+        34443 => "mode".to_string(),
         _ => "Unknown".to_string(),
     }
 }
@@ -193,12 +240,53 @@ pub async fn get_quote(
     Ok(quote_response)
 }
 
+pub async fn get_tx_data(
+    base_url: &str,
+    chain_id: u64,
+    dex_agg: AggregateMergeSwapInfo,
+    permit: Option<PermitSingle>,
+    permit_signature: String,
+    from: &str,
+    slippage_bps: u16,
+) -> Result<BuildResponse> {
+    let url = format!("{}/chains/{}/v2/build", base_url, chain_id);
+    let client = Client::new();
+
+    let build_request_body = BuildRequestBody {
+        from: from.to_string(),
+        slippage_bps: slippage_bps.to_string(),
+        permit,
+        permit_signature,
+        dex_agg,
+        cycles: vec![],
+    };
+
+    let response = client
+        .post(url)
+        .header("accept", "application/json")
+        .header("Content-Type", "application/json")
+        .json(&build_request_body)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!(
+            "Failed to fetch quote: HTTP {}",
+            response.status()
+        ));
+    }
+
+    let build_response: BuildResponse = response.json().await?;
+
+    Ok(build_response)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tokio;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_get_chain_metadata() -> Result<()> {
         dotenv().unwrap();
 
@@ -208,7 +296,6 @@ mod tests {
 
         // Call the function
         let result = get_chain_metadata(&base_url, chain_id).await?;
-        println!("{:?}", result);
         let src_token = "eth";
         let dst_token = "usdc";
 
@@ -222,12 +309,22 @@ mod tests {
             chain_id,
             src_token_addr,
             dst_token_addr,
-            U256::from_dec_str("1000000000000000000").unwrap(),
+            U256::from_str_radix("1000000000000000", 10).unwrap(),
             None,
         )
         .await?;
 
-        println!("{:?}", quote);
+        let tx_data = get_tx_data(
+            &base_url,
+            chain_id,
+            quote.result.dex_agg.unwrap(),
+            None,
+            String::new(),
+            "0xdAf87a186345f26d107d000fAD351E79Ff696d2C",
+            100,
+        )
+        .await?;
+
         Ok(())
     }
 }
