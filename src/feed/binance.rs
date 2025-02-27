@@ -1,5 +1,5 @@
 use super::{Feed, Processor};
-use crate::{constants::Interval, price::PriceData};
+use crate::{constants::Interval, utils::price::PriceData};
 use async_trait::async_trait;
 use reqwest::Client as ReqwestClient;
 use serde::{Deserialize, Serialize};

@@ -1,20 +1,17 @@
-use crate::price::fetch_binance_prices;
 use anyhow::Result;
 use clap::Parser;
 use constants::Interval;
 use dotenv::dotenv;
-use pricedata::BinanceData;
 use serde_json::json;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use utils::price::PriceData;
 
 pub mod constants;
 pub mod executor;
 pub mod feed;
 pub mod portfolio;
-pub mod price;
-pub mod pricedata;
 pub mod utils;
 
 #[tokio::main]
