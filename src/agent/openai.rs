@@ -31,7 +31,7 @@ pub struct OpenAIAgent {
 impl OpenAIAgent {
     pub fn new(api_key: String, model: String, temperature: f32) -> Self {
         let client = Client::new().with_api_key(api_key);
-        
+
         Self {
             client,
             model,
@@ -47,7 +47,7 @@ impl Agent for OpenAIAgent {
         self.prompt = prompt;
         self
     }
-    
+
     fn prompt(&self) -> &str {
         &self.prompt
     }
@@ -79,11 +79,11 @@ impl Agent for OpenAIAgent {
 
         // Send the request
         let response = self.client.chat().create(request).await?;
-        
+
         // Extract the response content
         let choice = response.choices.first()
             .ok_or_else(|| anyhow::anyhow!("No completion choices returned"))?;
-            
+
         Ok(choice.message.content.clone().unwrap_or_default())
     }
 }
@@ -102,10 +102,10 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
             sustainability over high APYs. Include relevant warnings about smart contract risks, \
             impermanent loss, and market volatility where appropriate."
         ));
-        
+
         Self { inner: agent }
     }
-    
+
     // Delegate the chat method to the inner Agent
     pub async fn chat(&self, messages: Vec<Message>) -> Result<String> {
         // Create a new vector with the system prompt as the first message
@@ -113,10 +113,10 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
             role: "system".to_string(),
             content: self.inner.prompt().to_string(),
         }];
-        
+
         // Add the user messages
         all_messages.extend(messages);
-        
+
         // Call the inner agent's chat method
         self.inner.chat(all_messages).await
     }
@@ -125,10 +125,10 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
         // Fetch the user's portfolio data for the specific token
         let onchain_portfolio = get_onchain_portfolio(base_url, wallet_address).await?;
         let token_exposure = get_token_exposure_onchain(onchain_portfolio, target_token).await?;
-        
+
         // Create a summary of the portfolio for the AI
         let portfolio_summary = self.create_portfolio_summary(&token_exposure, target_token);
-        
+
         // Create a message asking for yield farming advice based on the portfolio
         let messages = vec![
             Message {
@@ -146,17 +146,17 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
                 ),
             },
         ];
-        
+
         // Get the AI's recommendation
         self.chat(messages).await
     }
-    
+
     fn create_portfolio_summary(&self, portfolio: &UserOnchainPortfolio, token: &str) -> String {
-        let mut summary = format!("Total {} exposure: {:.4} {}\n\n", 
+        let mut summary = format!("Total {} exposure: {:.4} {}\n\n",
             token.to_uppercase(), portfolio.total_exposure, token.to_uppercase());
-            
+
         summary.push_str("Current holdings breakdown:\n");
-        
+
         for chain in &portfolio.chain_details {
             // Add chain name based on chain ID if available
             let chain_name = match chain.chain_id {
@@ -168,19 +168,19 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
                 // Add more chains as needed
                 _ => "Unknown Chain",
             };
-            
+
             summary.push_str(&format!("\n{} (Chain ID: {}):\n", chain_name, chain.chain_id));
-            
+
             for protocol in &chain.protocol_details {
                 summary.push_str(&format!("  Protocol: {}\n", protocol.name));
-                
+
                 for asset in &protocol.assets {
-                    summary.push_str(&format!("    - {} {:.4} (underlying amount: {:.4})\n", 
+                    summary.push_str(&format!("    - {} {:.4} (underlying amount: {:.4})\n",
                         asset.symbol, asset.balance, asset.underlying_amount));
                 }
             }
         }
-        
+
         summary
     }
 }
