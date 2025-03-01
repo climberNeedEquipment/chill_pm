@@ -145,8 +145,7 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
 
     pub async fn get_farming_strategy(
         &self,
-        portfolio_summary: &String,
-        target_token: &str,
+        portfolio_summary: &String
     ) -> Result<String> {
         // Fetch the user's portfolio data for the specific token
 
@@ -155,17 +154,15 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
             Message {
                 role: "user".to_string(),
                 content: format!(
-                    "I have the following {} portfolio:\n\n{}\n\nI want to optimize my yield farming \
-                    strategy specifically for {}. \n\n\
+                    "I have the following portfolio:\n\n{}\n\nI want to optimize my yield farming \
+                    strategy. \n\n\
                     Please recommend a strategy that is delta neutral, meaning you should take both opposite positions between CEX and DEX. \
                     The Eisen portfoilio is for DEX, and Binance is for CEX. \
                     Adjust your position in each exchange so that the portfolio results in delta neutral on native assets, but still has \
                     a yield from staking and restaking ETH tokens. \
-                    Ouput format should be in JSON format in this format:\
+                    Ouput format should be in JSON format in this format and do not print anything else:\
                     {}",
-                    target_token.to_uppercase(),
                     portfolio_summary,
-                    target_token.to_uppercase(),
                     r#"
 {
     "exchanges": [

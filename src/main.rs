@@ -27,8 +27,7 @@ pub mod agent;
 
 #[derive(Debug, Deserialize)]
 struct ApiParams {
-    wallet_address: String,
-    token: Option<String>, // Optional token for Eisen portfolio
+    wallet_address: String
 }
 
 #[derive(Debug, Serialize)]
@@ -267,10 +266,6 @@ async fn execute(
             None
         }
     };
-    
-    // Get Eisen onchain portfolio data
-    let token = params.token.unwrap_or_else(|| "eth".to_string());
-    println!("Fetching Eisen onchain portfolio data for token: {}", token);
     println!("Wallet address: {}", params.wallet_address);
     
     let onchain_portfolio = match get_onchain_portfolio(&state.eisen_base_url, &params.wallet_address).await {
@@ -309,7 +304,7 @@ async fn execute(
         let all_portfolio_summary = format!("{}\n\n{}", portfolio_summary, binance_portfolio_summary).to_string();
 
         // Try to generate a farming strategy
-        match yield_agent.get_farming_strategy(&portfolio_summary, &token).await {
+        match yield_agent.get_farming_strategy(&portfolio_summary).await {
         Ok(strategy_text) => {
                 println!("Successfully generated strategy");
                 
