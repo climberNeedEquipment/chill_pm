@@ -290,7 +290,7 @@ async fn execute(
         // Create OpenAI agent
         let openai_agent = OpenAIAgent::new(
             state.openai_api_key.clone(),
-            "gpt-o1".to_string(),
+            "o1".to_string(),
             0.7,
         );
         
