@@ -1,4 +1,4 @@
-use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent};
+use crate::agent::openai::{GaiaAIAgent, StableYieldFarmingAgent};
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
 use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::utils::price::{fetch_binance_prices, fetch_major_crypto_prices};
@@ -19,7 +19,7 @@ use axum::{
 use clap::Parser;
 use dotenv::dotenv;
 use executor::eisen::get_chain_metadata;
-use reqwest::Url;
+use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::net::SocketAddr;
@@ -402,11 +402,13 @@ async fn execute(
         response.status = "success".to_string();
         println!("Generating investment strategy...");
 
-        // Create OpenAI agent
-        let openai_agent = OpenAIAgent::new(state.openai_api_key.clone(), "o1".to_string(), 0.7);
+        // Create Gaia agent
+        let client = Client::new();
+        let gaia_agent =
+            GaiaAIAgent::new(client, state.openai_api_key.clone(), "o1".to_string(), 0.7);
 
         // Create the specialized yield farming agent
-        let yield_agent = StableYieldFarmingAgent::new(openai_agent);
+        let yield_agent = StableYieldFarmingAgent::new(gaia_agent);
 
         // Use the token value we already extracted above
         let portfolio_summary = format_onchain_data(&onchain_portfolio.unwrap());
