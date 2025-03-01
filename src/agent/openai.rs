@@ -59,6 +59,11 @@ impl Agent for OpenAIAgent {
 
     async fn chat(&self, messages: Vec<Message>) -> Result<String> {
         // Convert our Message type to the library's ChatCompletionRequestMessage type
+        // Debug print all messages
+        println!("Sending the following messages to OpenAI:");
+        for (i, msg) in messages.iter().enumerate() {
+            println!("  Message {}: role={}, content={}", i, msg.role, msg.content);
+        }
         let request_messages: Vec<ChatCompletionRequestMessage> = messages
             .into_iter()
             .map(|msg| {
@@ -93,12 +98,14 @@ impl Agent for OpenAIAgent {
         let request = CreateChatCompletionRequest {
             model: self.model.clone(),
             messages: request_messages,
-            temperature: Some(self.temperature),
+            temperature: None,
             ..Default::default()
         };
 
         // Send the request
         let response = self.client.chat().create(request).await?;
+
+        println!("Response: {:?}", response);
 
         // Extract the response content
         let choice = response
@@ -145,6 +152,7 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
 
     pub async fn get_farming_strategy(
         &self,
+        prices: &String,
         portfolio_summary: &String
     ) -> Result<String> {
         // Fetch the user's portfolio data for the specific token
@@ -154,15 +162,18 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
             Message {
                 role: "user".to_string(),
                 content: format!(
-                    "I have the following portfolio:\n\n{}\n\nI want to optimize my yield farming \
+                    "I have the following portfolio:\n\n{}\n\n
+                    Here is the current price of the tokens in the portfolio:\n\n{}\n\n
+                    I want to optimize my yield farming \
                     strategy. \n\n\
                     Please recommend a strategy that is delta neutral, meaning you should take both opposite positions between CEX and DEX. \
                     The Eisen portfoilio is for DEX, and Binance is for CEX. \
                     Adjust your position in each exchange so that the portfolio results in delta neutral on native assets, but still has \
                     a yield from staking and restaking ETH tokens. \
-                    Ouput format should be in JSON format in this format and do not print anything else:\
+                    Here is an example of ouput format that should be in JSON format do not print anything else:\
                     {}",
                     portfolio_summary,
+                    prices,
                     r#"
 {
     "exchanges": [
@@ -172,15 +183,15 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
                 {
                     "position": "short",
                     "token": "ETH",
-                    "amount": "100",
-                    "price": "3000",
+                    "amount": "<amount>",
+                    "price": "<price>",
                     "side": "sell"
                 },
                 {
                     "position": "short",
                     "token": "ETH",
-                    "amount": "100",
-                    "price": "3000",
+                    "amount": "<amount>",
+                    "price": "<price>",
                     "side": "sell"
                 }
             ]   
@@ -191,15 +202,15 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
                 {
                     "position": "long",
                     "token": "mETH",
-                    "amount": "100",
-                    "price": "3000",
+                    "amount": "<amount>",
+                    "price": "<price>",
                     "side": "buy"
                 },
                 {
                     "position": "long",
                     "token": "stETH",
-                    "amount": "100",
-                    "price": "3000",
+                    "amount": "<amount>",
+                    "price": "<price>",
                     "side": "buy"
                 }
             ]

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use reqwest::Client as ReqwestClient;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PriceData {
@@ -63,4 +64,41 @@ pub async fn fetch_binance_prices(client: &ReqwestClient, symbol: &String) -> Re
     price_data.sell_short_price = Some(response.bids[0].0.parse::<f64>().unwrap());
 
     Ok(price_data)
+}
+
+/// Fetches prices for both BTC and ETH in parallel
+pub async fn fetch_major_crypto_prices(client: &ReqwestClient) -> Result<HashMap<String, PriceData>> {
+    let btc_symbol = "BTCUSDT".to_string();
+    let eth_symbol = "ETHUSDT".to_string();
+    
+    // Fetch both prices in parallel
+    let (btc_result, eth_result) = tokio::join!(
+        fetch_binance_prices(client, &btc_symbol),
+        fetch_binance_prices(client, &eth_symbol)
+    );
+    
+    // Create a HashMap to store the results
+    let mut prices = HashMap::new();
+    
+    // Add BTC price data if successful
+    match btc_result {
+        Ok(price_data) => {
+            prices.insert("BTC".to_string(), price_data);
+        },
+        Err(err) => {
+            println!("Error fetching BTC price: {:?}", err);
+        }
+    }
+    
+    // Add ETH price data if successful
+    match eth_result {
+        Ok(price_data) => {
+            prices.insert("ETH".to_string(), price_data);
+        },
+        Err(err) => {
+            println!("Error fetching ETH price: {:?}", err);
+        }
+    }
+    
+    Ok(prices)
 }

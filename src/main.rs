@@ -16,6 +16,7 @@ use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSumma
 use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::utils::sign::BinanceKey;
 use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent};
+use crate::utils::price::{fetch_binance_prices, fetch_major_crypto_prices};
 
 pub mod constants;
 pub mod executor;
@@ -27,7 +28,8 @@ pub mod agent;
 
 #[derive(Debug, Deserialize)]
 struct ApiParams {
-    wallet_address: String
+    wallet_address: String,
+    token: Option<String>, // Optional token for Eisen portfolio
 }
 
 #[derive(Debug, Serialize)]
@@ -237,6 +239,46 @@ async fn execute(
         api_key: state.binance_api_key.clone(),
         secret_key: state.binance_api_secret.clone(),
     };
+
+    println!("Fetching major crypto prices from Binance...");
+    
+    // Fetch BTC and ETH prices
+    let prices = match fetch_major_crypto_prices(&state.reqwest_cli).await {
+        Ok(prices) => {
+            println!("Successfully fetched major crypto prices:");
+            
+            if let Some(btc_price) = prices.get("BTC") {
+                println!("BTC Market Price: {:?}", btc_price.market_price);
+                println!("BTC Buy Price: {:?}", btc_price.buy_long_price);
+                println!("BTC Sell Price: {:?}", btc_price.sell_short_price);
+            }
+            
+            if let Some(eth_price) = prices.get("ETH") {
+                println!("ETH Market Price: {:?}", eth_price.market_price);
+                println!("ETH Buy Price: {:?}", eth_price.buy_long_price);
+                println!("ETH Sell Price: {:?}", eth_price.sell_short_price);
+            }
+            prices
+        },
+        Err(err) => {
+            println!("Error fetching major crypto prices: {:?}", err);
+            response.status = "error".to_string();
+            response.message = "Failed to retrieve any portfolio data".to_string();
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response();
+        }
+    };
+
+    // Create a stringified version of the prices data
+    let prices_str = match serde_json::to_string_pretty(&prices) {
+        Ok(json_str) => {
+            println!("Prices JSON: {}", json_str);
+            json_str
+        },
+        Err(err) => {
+            println!("Error serializing prices to JSON: {:?}", err);
+            "{}".to_string() // Return empty JSON object on error
+        }
+    };
     
     println!("Fetching Binance portfolio data...");
     
@@ -304,7 +346,7 @@ async fn execute(
         let all_portfolio_summary = format!("{}\n\n{}", portfolio_summary, binance_portfolio_summary).to_string();
 
         // Try to generate a farming strategy
-        match yield_agent.get_farming_strategy(&portfolio_summary).await {
+        match yield_agent.get_farming_strategy(&prices_str, &portfolio_summary).await {
         Ok(strategy_text) => {
                 println!("Successfully generated strategy");
                 
