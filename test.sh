@@ -5,7 +5,7 @@ HOST="localhost"
 PORT="8080"
 ENDPOINT="/api/v1/execute"
 URL="http://${HOST}:${PORT}${ENDPOINT}"
-WALLET_ADDRESS="0x96a2e1Cb03128DC4cD2b5D9502F0AaB8E9a9e856"  # Example Ethereum wallet address
+WALLET_ADDRESS="0x998F8207Ab6Ea84d0124232529de02d537102c85"  # Example Ethereum wallet address
 
 # Print information about the request
 echo "Testing execute endpoint at: ${URL}"

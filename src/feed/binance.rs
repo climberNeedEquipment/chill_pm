@@ -11,43 +11,43 @@ use strum::IntoEnumIterator;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct MarketIndexResponse {
-    mark_price: String,             // mark price
-    index_price: String,            // index price
-    estimated_settle_price: String, // Estimated Settle Price, only useful in the last hour before the settlement starts.
-    last_funding_rate: String,      // This is the Latest funding rate
-    next_funding_time: u64,
-    interest_rate: String,
-    time: u64,
+pub struct MarketIndexResponse {
+    pub mark_price: String,             // mark price
+    pub index_price: String,            // index price
+    pub estimated_settle_price: String, // Estimated Settle Price, only useful in the last hour before the settlement starts.
+    pub last_funding_rate: String,      // This is the Latest funding rate
+    pub next_funding_time: u64,
+    pub interest_rate: String,
+    pub time: u64,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct DepthResponse {
-    last_update_id: u64,
-    bids: Vec<(String, String)>,
-    asks: Vec<(String, String)>,
+pub struct DepthResponse {
+    pub last_update_id: u64,
+    pub bids: Vec<(String, String)>,
+    pub asks: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct FundingRateResponse {
-    sym: u64,
-    bids: Vec<(String, String)>,
-    asks: Vec<(String, String)>,
+pub struct FundingRateResponse {
+    pub sym: u64,
+    pub bids: Vec<(String, String)>,
+    pub asks: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct FundingRate {
-    symbol: String,
-    funding_rate: String,
-    funding_time: u64,
-    mark_price: String,
+pub struct FundingRate {
+    pub symbol: String,
+    pub funding_rate: String,
+    pub funding_time: u64,
+    pub mark_price: String,
 }
 
 #[derive(Serialize, Deserialize)]
-struct KlineData(
+pub struct KlineData(
     u64,    // Open time
     String, // Open price
     String, // High price
@@ -107,7 +107,7 @@ impl<'a> BinancePriceFeed<'a> {
         }
     }
 
-    async fn fetch_index_price(&self) -> Result<MarketIndexResponse, reqwest::Error> {
+    pub async fn fetch_index_price(&self) -> Result<MarketIndexResponse, reqwest::Error> {
         self.client
             .get(format!("{}/fapi/v1/premiumIndex", self.base_url))
             .query(&[("symbol", self.symbol.as_str())])

@@ -269,13 +269,13 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
                 role: "user".to_string(),
                 content: format!(
                     "I have the following portfolio:\n\n{}\n\n
-                    Here is the current price of the tokens in the portfolio:\n\n{}\n\n
+                    Here is the current market price of the tokens in the portfolio:\n\n{}\n\n
                     I want to optimize my yield farming \
                     strategy. \n\n\
                     Please recommend a strategy that is delta neutral, meaning you should take both opposite positions between CEX and DEX. \
-                    The Eisen portfoilio is for DEX, and Binance is for CEX. \
-                    Adjust your position in each exchange so that the portfolio results in delta neutral on native assets, but still has \
-                    a yield from staking and restaking ETH tokens. \
+                    The Eisen portfoilio is for DEX, and Binance is for CEX.
+                    In Binance, you can only trade on BTC and ETH
+                    In Eisen, you can trade on all the tokens in the portfolio.
                     Here is an example of ouput format that should be in JSON format do not print anything else:\
                     {}",
                     portfolio_summary,
@@ -288,14 +288,14 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
             "positions": [
                 {
                     "position": "short",
-                    "token": "ETH",
+                    "token": "<token_symbol1>",
                     "amount": "<amount>",
                     "price": "<price>",
                     "side": "sell"
                 },
                 {
                     "position": "short",
-                    "token": "ETH",
+                    "token": "<token_symbol2>",
                     "amount": "<amount>",
                     "price": "<price>",
                     "side": "sell"
@@ -306,13 +306,13 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
             "target": "Eisen",
             "swaps": [
                 {
-                    "token_in": "mETH",
-                    "token_out": "ETH",
+                    "position": "long",
+                    "token": "<token_symbol1>",
                     "amount": "<amount>",
                 },
                 {
-                    "token_in": "stETH",
-                    "token_out": "ETH",
+                    "position": "long",
+                    "token": "<token_symbol2>",
                     "amount": "<amount>",
                 }
             ]
