@@ -1,17 +1,3 @@
-use anyhow::Result;
-use axum::{
-    extract::{Json, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    routing::{get, post},
-    Router,
-};
-use clap::Parser;
-use dotenv::dotenv;
-use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
-use std::{env, sync::Arc};
-
 use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent};
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
 use crate::portfolio::eisen::get_onchain_portfolio;
@@ -22,8 +8,22 @@ use alloy::primitives::U256;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::TransactionRequest;
 use alloy::signers::local::PrivateKeySigner;
+use anyhow::Result;
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    routing::{get, post},
+    Router,
+};
+use clap::Parser;
+use dotenv::dotenv;
 use executor::eisen::get_chain_metadata;
 use reqwest::Url;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::net::SocketAddr;
+use std::{env, sync::Arc};
 pub mod agent;
 pub mod cli;
 pub mod constants;
@@ -31,6 +31,8 @@ pub mod executor;
 pub mod feed;
 pub mod portfolio;
 pub mod utils;
+
+use crate::utils::parser::{extract_binance_place_order, extract_eisen_swaps};
 
 #[derive(Debug, Deserialize)]
 struct ApiParams {
@@ -471,4 +473,63 @@ impl IntoResponse for AppError {
 
         (status, Json(response)).into_response()
     }
+}
+
+// Function to call quote_and_send_tx for Eisen swaps
+async fn process_eisen_swaps(
+    json_response: &serde_json::Value,
+    provider: &dyn Provider,
+    base_url: &str,
+    chain_data: &executor::eisen::ChainData,
+    wallet_addr: &alloy::primitives::Address,
+) -> Result<(), Box<dyn Error>> {
+    let swaps = extract_eisen_swaps(json_response);
+
+    for swap in swaps {
+        // Call the quote_and_send_tx function from executor/eisen
+        let result = executor::eisen::quote_and_send_tx(
+            provider,
+            base_url,
+            chain_data,
+            &swap.token_in,
+            &swap.token_out,
+            swap.amount,
+            wallet_addr,
+            100, // Default slippage of 1% (100 basis points)
+        )
+        .await?;
+
+        // Handle the result as needed
+        println!("Eisen swap executed: {:?}", result);
+    }
+
+    Ok(())
+}
+
+// Function to process Binance positions from the strategy JSON
+async fn process_binance_place_order(
+    json_response: &serde_json::Value,
+    binance_base_url: &str,
+    binance_key: &utils::sign::BinanceKey,
+) -> Result<(), Box<dyn Error>> {
+    let positions = extract_binance_place_order(json_response);
+
+    for position in positions {
+        // Call the place_binance_order function
+        let result = executor::binance::place_binance_order(
+            binance_base_url,
+            binance_key,
+            &position.symbol, // Use token directly as symbol is constructed inside the function
+            position.side,
+            position.quantity,
+            position.price,
+            None, // No stop price for now
+        )
+        .await?;
+
+        // Handle the result as needed
+        println!("Binance position executed: {:?}", result);
+    }
+
+    Ok(())
 }

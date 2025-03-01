@@ -2,10 +2,10 @@ use anyhow::Result;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        ChatCompletionRequestMessage, CreateChatCompletionRequest,
-        ChatCompletionRequestSystemMessage, ChatCompletionRequestSystemMessageContent,
-        ChatCompletionRequestUserMessage, ChatCompletionRequestUserMessageContent,
         ChatCompletionRequestAssistantMessage, ChatCompletionRequestAssistantMessageContent,
+        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+        ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
+        ChatCompletionRequestUserMessageContent, CreateChatCompletionRequest,
     },
     Client,
 };
@@ -62,35 +62,36 @@ impl Agent for OpenAIAgent {
         // Debug print all messages
         println!("Sending the following messages to OpenAI:");
         for (i, msg) in messages.iter().enumerate() {
-            println!("  Message {}: role={}, content={}", i, msg.role, msg.content);
+            println!(
+                "  Message {}: role={}, content={}",
+                i, msg.role, msg.content
+            );
         }
         let request_messages: Vec<ChatCompletionRequestMessage> = messages
             .into_iter()
-            .map(|msg| {
-                match msg.role.as_str() {
-                    "system" => ChatCompletionRequestMessage::System(
-                        ChatCompletionRequestSystemMessage {
-                            content: ChatCompletionRequestSystemMessageContent::Text(msg.content),
-                            name: None,
-                        }
-                    ),
-                    "assistant" => ChatCompletionRequestMessage::Assistant(
-                        ChatCompletionRequestAssistantMessage {
-                            content: Some(ChatCompletionRequestAssistantMessageContent::Text(msg.content)),
-                            name: None,
-                            function_call: None,
-                            tool_calls: None,
-                            refusal: None,
-                            audio: None,
-                        }
-                    ),
-                    _ => ChatCompletionRequestMessage::User(
-                        ChatCompletionRequestUserMessage {
-                            content: ChatCompletionRequestUserMessageContent::Text(msg.content),
-                            name: None,
-                        }
-                    ),
+            .map(|msg| match msg.role.as_str() {
+                "system" => {
+                    ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                        content: ChatCompletionRequestSystemMessageContent::Text(msg.content),
+                        name: None,
+                    })
                 }
+                "assistant" => {
+                    ChatCompletionRequestMessage::Assistant(ChatCompletionRequestAssistantMessage {
+                        content: Some(ChatCompletionRequestAssistantMessageContent::Text(
+                            msg.content,
+                        )),
+                        name: None,
+                        function_call: None,
+                        tool_calls: None,
+                        refusal: None,
+                        audio: None,
+                    })
+                }
+                _ => ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                    content: ChatCompletionRequestUserMessageContent::Text(msg.content),
+                    name: None,
+                }),
             })
             .collect();
 
@@ -153,7 +154,7 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
     pub async fn get_farming_strategy(
         &self,
         prices: &String,
-        portfolio_summary: &String
+        portfolio_summary: &String,
     ) -> Result<String> {
         // Fetch the user's portfolio data for the specific token
 
@@ -198,20 +199,16 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
         },
         {
             "target": "Eisen",
-            "positions": [
+            "swaps": [
                 {
-                    "position": "long",
-                    "token": "mETH",
+                    "token_in": "mETH",
+                    "token_out": "ETH",
                     "amount": "<amount>",
-                    "price": "<price>",
-                    "side": "buy"
                 },
                 {
-                    "position": "long",
-                    "token": "stETH",
+                    "token_in": "stETH",
+                    "token_out": "ETH",
                     "amount": "<amount>",
-                    "price": "<price>",
-                    "side": "buy"
                 }
             ]
         }
