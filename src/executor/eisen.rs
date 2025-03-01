@@ -1,10 +1,25 @@
 use alloy::primitives::{utils::parse_units, Address, Bytes, U256};
+use alloy::signers::local::LocalWallet;
 use anyhow::Result;
 use dotenv::dotenv;
 use positions::prelude::Str;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct BalanceAllowResponse {
+    result: Vec<BalanceAllow>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct BalanceAllow {
+    token_address: String,
+    balance: String,
+    allowance: String,
+}
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -158,6 +173,29 @@ fn convert_chain_id_to_name(chain_id: u64) -> String {
     }
 }
 
+async fn get_balance_allow(
+    base_url: &str,
+    chain_id: u64,
+    wallet_addr: String,
+) -> Result<BalanceAllowResponse> {
+    let url = format!(
+        "{}/chains/{}/balances?walletAddress={}",
+        base_url, chain_id, wallet_addr
+    );
+    let client = Client::new();
+    let response = client.get(url).send().await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!(
+            "Failed to fetch chain metadata: HTTP {}",
+            response.status()
+        ));
+    }
+
+    let metadata: BalanceAllowResponse = response.json().await?;
+
+    Ok(metadata)
+}
 async fn get_chain_metadata(base_url: &str, chain_id: u64) -> Result<ChainData> {
     let url = format!("{}/chains/{}/metadata", base_url, chain_id);
     let client = Client::new();
@@ -285,6 +323,33 @@ pub async fn get_tx_data(
 mod tests {
     use super::*;
     use tokio;
+
+    use alloy::{
+        consensus::BlockHeader,
+        eips::BlockId,
+        network::{AnyNetwork, TransactionBuilder, TransactionResponse},
+        primitives::U256,
+        providers::{Provider, ProviderBuilder},
+        rpc::types::{
+            serde_helpers::WithOtherFields, Block, BlockTransactionsKind, TransactionRequest,
+        },
+    };
+    use std::sync::Arc;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn get_balance_allow_test() -> Result<()> {
+        dotenv().unwrap();
+
+        let base_url = env::var("EISEN_BASE_URL").expect("EISEN_BASE_URL must be set in .env");
+        let chain_id = 8453;
+        let wallet_addr = "0xdAf87a186345f26d107d000fAD351E79Ff696d2C".to_string();
+
+        let result = get_balance_allow(&base_url, chain_id, wallet_addr).await?;
+
+        println!("{:?}", result);
+
+        Ok(())
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_chain_metadata() -> Result<()> {
