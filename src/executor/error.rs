@@ -1,5 +1,5 @@
 use crate::utils::sign::SignError;
-use std::{convert::Infallible, fmt};
+use std::convert::Infallible;
 use thiserror::Error;
 
 /// Instrument Errors.

@@ -11,7 +11,6 @@ use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
 use crate::portfolio::eisen::{get_onchain_portfolio, get_token_exposure_onchain};

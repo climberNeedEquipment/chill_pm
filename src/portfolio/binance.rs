@@ -1,13 +1,9 @@
 use crate::utils::sign::BinanceKey;
 use anyhow::Result;
-use dotenv::dotenv;
-use http::Request;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::HeaderValue;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
-use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {

@@ -1,10 +1,8 @@
-use alloy::primitives::{utils::parse_units, Address, Bytes, U256};
+use alloy::primitives::{Address, Bytes, U256};
 use anyhow::Result;
-use dotenv::dotenv;
-use positions::prelude::Str;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env};
+use std::collections::HashMap;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]

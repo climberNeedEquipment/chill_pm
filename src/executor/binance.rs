@@ -1,16 +1,12 @@
-use crate::executor::error::{ExchangeError, RestError};
+use crate::executor::error::ExchangeError;
 use crate::utils::sign::BinanceKey;
 use anyhow::Result;
-use dotenv::dotenv;
-use http::Request;
-use positions::{prelude::Str, Asset};
-use reqwest::header::{HeaderMap, HeaderValue};
+use positions::Asset;
+use reqwest::header::HeaderValue;
 use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Position side.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

@@ -1,9 +1,7 @@
 use anyhow::{anyhow, Result};
-use dotenv::dotenv;
-use reqwest::Error;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use std::{collections::HashMap, env};
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
