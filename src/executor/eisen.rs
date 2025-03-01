@@ -1,4 +1,9 @@
-use alloy::primitives::{Address, Bytes, U256};
+use alloy::network::EthereumWallet;
+use alloy::network::TransactionBuilder;
+use alloy::primitives::FixedBytes;
+use alloy::primitives::{hex, Address, Bytes, U256};
+use alloy::providers::{Provider, ProviderBuilder, WalletProvider};
+use alloy::rpc::types::TransactionRequest;
 use alloy::signers::local::LocalWallet;
 use anyhow::Result;
 use reqwest::Client;
@@ -7,13 +12,13 @@ use std::collections::HashMap;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct BalanceAllowResponse {
+pub struct BalanceAllowResponse {
     result: Vec<BalanceAllow>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct BalanceAllow {
+pub struct BalanceAllow {
     token_address: String,
     balance: String,
     allowance: String,
@@ -21,13 +26,13 @@ struct BalanceAllow {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct ChainMetadataResponse {
+pub struct ChainMetadataResponse {
     result: ChainMetadata,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct ChainMetadata {
+pub struct ChainMetadata {
     id: String,
     native_symbol: String,
     tokens: Vec<Token>,
@@ -41,7 +46,7 @@ struct Token {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ChainData {
+pub struct ChainData {
     id: u64,
     name: String,
     sym_to_addr_n_decimals: HashMap<String, (String, u8)>,
@@ -194,7 +199,7 @@ async fn get_balance_allow(
 
     Ok(metadata)
 }
-async fn get_chain_metadata(base_url: &str, chain_id: u64) -> Result<ChainData> {
+pub async fn get_chain_metadata(base_url: &str, chain_id: u64) -> Result<ChainData> {
     let url = format!("{}/chains/{}/metadata", base_url, chain_id);
     let client = Client::new();
     let response = client.get(url).send().await?;
@@ -317,9 +322,75 @@ pub async fn get_tx_data(
     Ok(build_response)
 }
 
+pub async fn send_tx(
+    provider: &dyn Provider,
+    build_response: BuildResponse,
+) -> Result<FixedBytes<32>> {
+    let tx = TransactionRequest::default()
+        .with_to(build_response.result.to)
+        .with_value(build_response.result.value)
+        .with_input(build_response.result.data);
+    let receipt = provider.send_transaction(tx).await?.watch().await?;
+    Ok(receipt)
+}
+
+pub async fn quote_and_send_tx(
+    provider: &dyn Provider,
+    base_url: &str,
+    chain_data: &ChainData,
+    from_token: &str,
+    to_token: &str,
+    amount: f64,
+    wallet_addr: &Address,
+    slippage_bps: u16,
+) -> Result<FixedBytes<32>> {
+    let chain_id = provider.get_chain_id().await?;
+
+    let (src_token_addr, src_token_decimals) =
+        &chain_data.sym_to_addr_n_decimals[&from_token.to_lowercase()];
+    let (dst_token_addr, dst_token_decimals) =
+        &chain_data.sym_to_addr_n_decimals[&to_token.to_lowercase()];
+
+    let amount_in = U256::from_str_radix(
+        &((amount * 10.0_f64.powi(*src_token_decimals as i32))
+            .floor()
+            .to_string()),
+        10,
+    )
+    .unwrap();
+
+    let quote = get_quote(
+        &base_url,
+        chain_id,
+        src_token_addr,
+        dst_token_addr,
+        amount_in,
+        None,
+    )
+    .await?;
+
+    let tx_data = get_tx_data(
+        &base_url,
+        chain_id,
+        quote.result.dex_agg.unwrap(),
+        None,
+        String::new(),
+        wallet_addr.to_string().as_str(),
+        slippage_bps,
+    )
+    .await?;
+
+    let tx = send_tx(provider, tx_data).await?;
+
+    Ok(tx)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy::network::EthereumWallet;
+    use alloy::signers::local::PrivateKeySigner;
+    use reqwest::Url;
     use tokio;
 
     use alloy::{
@@ -332,6 +403,22 @@ mod tests {
             serde_helpers::WithOtherFields, Block, BlockTransactionsKind, TransactionRequest,
         },
     };
+    #[test]
+    fn cmp_amount() -> Result<()> {
+        let amount = 1.1;
+        let src_token_decimals = 6;
+        let amount_in = U256::from_str_radix(
+            &((amount * 10.0_f64.powi(src_token_decimals as i32))
+                .floor()
+                .to_string()),
+            10,
+        )
+        .unwrap();
+
+        println!("amount_in: {}", amount_in);
+        assert_eq!(amount_in, U256::from_str_radix("1100000", 10).unwrap());
+        Ok(())
+    }
     use std::sync::Arc;
 
     #[tokio::test(flavor = "multi_thread")]
@@ -355,29 +442,49 @@ mod tests {
     async fn test_get_chain_metadata() -> Result<()> {
         dotenv().unwrap();
 
+        let signer: PrivateKeySigner = env::var("PRIVATE_KEY_DEPLOYER")
+            .expect("PRIVATE_KEY must be set in .env")
+            .chars()
+            .skip(2)
+            .collect::<String>()
+            .parse()
+            .unwrap();
+
+        let wallet = EthereumWallet::from(signer);
+
+        println!("{:?}", wallet.default_signer().address());
+
         // Mock base URL and chain ID
         let base_url = env::var("EISEN_BASE_URL").expect("EISEN_BASE_URL must be set in .env");
-        let chain_id = 8453;
+        let rpc_url = Url::parse("https://mainnet.base.org").unwrap();
+        let provider = ProviderBuilder::new()
+            .wallet(wallet.clone())
+            .on_http(rpc_url);
+
+        let provider = Arc::new(provider);
+        let chain_id = provider.get_chain_id().await?;
 
         // Call the function
         let result = get_chain_metadata(&base_url, chain_id).await?;
         let src_token = "eth";
-        let dst_token = "usdc";
+        let dst_token = "weeth";
 
         let (src_token_addr, src_token_decimals) =
             &result.sym_to_addr_n_decimals[&src_token.to_lowercase()];
         let (dst_token_addr, dst_token_decimals) =
             &result.sym_to_addr_n_decimals[&dst_token.to_lowercase()];
-
+        let amount_in = U256::from_str_radix("1000000000000000", 10).unwrap();
         let quote = get_quote(
             &base_url,
             chain_id,
             src_token_addr,
             dst_token_addr,
-            U256::from_str_radix("1000000000000000", 10).unwrap(),
+            amount_in,
             None,
         )
         .await?;
+
+        let addr = "0xdAf87a186345f26d107d000fAD351E79Ff696d2C".to_string();
 
         let tx_data = get_tx_data(
             &base_url,
@@ -385,10 +492,34 @@ mod tests {
             quote.result.dex_agg.unwrap(),
             None,
             String::new(),
-            "0xdAf87a186345f26d107d000fAD351E79Ff696d2C",
+            &addr,
             100,
         )
         .await?;
+
+        let rpc_url = Url::parse("https://base.llamarpc.com").unwrap();
+
+        // let anvil = Anvil::new()
+        //     .fork(rpc_url)
+        //     .fork_block_number(fork_block)
+        //     .block_time(1_u64)
+        //     .timeout(60_u64)
+        //     .spawn();
+
+        // let anvil_provider = ProviderBuilder::new()
+        //     .wallet(wallet)
+        //     .on_http(anvil.endpoint().parse().unwrap());
+        // let anvil_provider = Arc::new(anvil_provider);
+
+        let call_data = tx_data.result.data;
+
+        let tx = TransactionRequest::default()
+            .with_to(tx_data.result.to)
+            .with_value(tx_data.result.value)
+            .with_input(call_data);
+
+        let receipt = provider.send_transaction(tx).await?.watch().await?;
+        println!("Sent transaction: {:?}", receipt);
 
         Ok(())
     }
