@@ -121,6 +121,94 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
         self.inner.chat(all_messages).await
     }
 
+    pub async fn get_portfolio_summary(&self, base_url: &str, wallet_address: &str, binance_key: &BinanceKey) -> Result<String> {
+        // Fetch the user's on-chain portfolio data
+        let onchain_portfolio = get_onchain_portfolio(base_url, wallet_address).await?;
+        
+        // Initialize portfolio data string
+        let mut portfolio_data = serde_json::to_string_pretty(&onchain_portfolio)?;
+        
+        // Fetch Binance portfolio data
+        if let Ok(binance_account) = crate::portfolio::binance::get_account_info(binance_key).await {
+            let binance_data = serde_json::to_string_pretty(&binance_account)?;
+            portfolio_data.push_str("\n\n--- Binance Portfolio Data ---\n\n");
+            portfolio_data.push_str(&binance_data);
+        }
+
+        // Format the portfolio data into a more readable tabular format
+        let mut formatted_portfolio = String::new();
+        
+        // Format on-chain portfolio data
+        formatted_portfolio.push_str("--- On-Chain Portfolio Summary ---\n\n");
+        
+        // Add chain details
+        for chain in &onchain_portfolio.chain_details {
+            formatted_portfolio.push_str(&format!("Chain ID: {}\n", chain.chain_id));
+            
+            // Add asset totals for this chain
+            formatted_portfolio.push_str("Asset Totals:\n");
+            for (asset, amount) in &chain.asset_total_amount_in_chain {
+                formatted_portfolio.push_str(&format!("  {}: {:.6}\n", asset, amount));
+            }
+            
+            // Add protocol details
+            formatted_portfolio.push_str("\nProtocols:\n");
+            for protocol in &chain.protocol_details {
+                formatted_portfolio.push_str(&format!("  {}:\n", protocol.name));
+                
+                // Add assets for this protocol
+                for asset in &protocol.assets {
+                    formatted_portfolio.push_str(&format!(
+                        "    {}: Balance={:.6}, Underlying={:.6}\n",
+                        asset.symbol, asset.balance, asset.underlying_amount
+                    ));
+                }
+            }
+            formatted_portfolio.push_str("\n");
+        }
+        
+        // Add Binance data
+        if let Ok(binance_account) = crate::portfolio::binance::get_binance_portfolio("https://fapi.binance.com", binance_key).await {
+            formatted_portfolio.push_str("--- Binance Portfolio Summary ---\n\n");
+            formatted_portfolio.push_str(&format!(
+                "Total Wallet Balance: {}\n\
+                 Total Unrealized Profit: {}\n\
+                 Total Margin Balance: {}\n\
+                 Available Balance: {}\n\n",
+                binance_account.total_wallet_balance,
+                binance_account.total_unrealized_profit,
+                binance_account.total_margin_balance,
+                binance_account.available_balance
+            ));
+            
+            // Add asset details
+            formatted_portfolio.push_str("Assets:\n");
+            for asset in &binance_account.assets {
+                if asset.wallet_balance != "0" {
+                    formatted_portfolio.push_str(&format!(
+                        "  {}: Balance={}, Available={}\n",
+                        asset.asset, asset.wallet_balance, asset.available_balance
+                    ));
+                }
+            }
+            
+            // Add position details
+            formatted_portfolio.push_str("\nPositions:\n");
+            for position in &binance_account.positions {
+                if position.position_amt != "0" {
+                    formatted_portfolio.push_str(&format!(
+                        "  {}: Amount={}, Side={}, Unrealized Profit={}\n",
+                        position.symbol, position.position_amt, position.position_side, position.unrealized_profit
+                    ));
+                }
+            }
+        }
+        
+        // Replace the raw JSON with the formatted tabular data
+        portfolio_data = formatted_portfolio;
+        Ok(portfolio_data)
+    }
+
     pub async fn get_farming_strategy(&self, base_url: &str, wallet_address: &str, target_token: &str) -> Result<String> {
         // Fetch the user's portfolio data for the specific token
         let onchain_portfolio = get_onchain_portfolio(base_url, wallet_address).await?;
@@ -135,10 +223,52 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
                 role: "user".to_string(),
                 content: format!(
                     "I have the following {} portfolio:\n\n{}\n\nI want to optimize my yield farming \
-                    strategy specifically for {}. Please suggest how I should rebalance my portfolio \
-                    to maximize stable yields for this asset while minimizing risk. Include specific \
-                    protocols that offer good {} yields, estimated APYs, and any relevant warnings \
-                    about the recommended platforms.",
+                    strategy specifically for {}. \n\n
+                    Please recommend a strategy that is delta neutral, meaning you should take both opposite positions between CEX and DEX. 
+                    The Eisen portfoilio is for DEX, and Binance is for CEX. 
+                    Adjust your position in each exchange so that the portfolio results in delta neutral on native assets, but still has
+                    a yield from staking and restaking ETH tokens. 
+                    Ouput format should be in JSON format in this format:
+                    {
+                        {
+                            "Target": "Binance",
+                            "positions": [
+                                {
+                                    "position": "short",
+                                    "token": "ETH",
+                                    "amount": "100",
+                                    "price": "3000",
+                                    "side": "sell"
+                                },
+                                {
+                                    "position": "short",
+                                    "token": "ETH",
+                                    "amount": "100",
+                                    "price": "3000",
+                                    "side": "sell"
+                                },
+                            ]   
+                        },
+                        {
+                            "Target": "Eisen",
+                            "positions": [
+                                {
+                                    "position": "long",
+                                    "token": "mETH",
+                                    "amount": "100",
+                                    "price": "3000",
+                                    "side": "buy"
+                                },
+                                {
+                                    "position": "long",
+                                    "token": "stETH",
+                                    "amount": "100",
+                                    "price": "3000",
+                                    "side": "buy"
+                                }
+                            ]
+                        }
+                    ",
                     target_token.to_uppercase(),
                     portfolio_summary,
                     target_token.to_uppercase(),
@@ -180,7 +310,6 @@ impl<A: Agent> StableYieldFarmingAgent<A> {
                 }
             }
         }
-
         summary
     }
 }
