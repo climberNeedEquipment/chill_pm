@@ -217,6 +217,8 @@ async fn main() -> Result<()> {
         "https://fapi.binance.com".to_string()
     };
 
+    let gaia_api_key = std::env::var("GAIA_API_KEY").unwrap_or_else(|_| "".to_string());
+
     let base_url = env::var("EISEN_BASE_URL").expect("EISEN_BASE_URL must be set in .env");
     let rpc_url = Url::parse("https://mainnet.base.org").unwrap();
     let provider = ProviderBuilder::new()
