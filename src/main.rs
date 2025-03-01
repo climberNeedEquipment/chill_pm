@@ -15,6 +15,7 @@ use std::net::SocketAddr;
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
 use crate::portfolio::eisen::{get_onchain_portfolio, get_token_exposure_onchain};
 use crate::utils::sign::BinanceKey;
+use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent, Message};
 
 pub mod constants;
 pub mod executor;
@@ -22,6 +23,7 @@ pub mod feed;
 pub mod portfolio;
 pub mod utils;
 pub mod cli;
+pub mod agent;
 
 #[derive(Debug, Deserialize)]
 struct ApiParams {
@@ -37,6 +39,8 @@ struct ApiResponse {
     binance_portfolio: Option<AccountSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]
     onchain_portfolio: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    strategy: Option<serde_json::Value>,
 }
 
 // Application state that will be shared between handlers
@@ -47,6 +51,7 @@ struct AppState {
     binance_api_secret: String,
     eisen_base_url: String,
     reqwest_cli: reqwest::Client,
+    openai_api_key: String,
 }
 
 // Helper function to format Binance portfolio data
@@ -163,6 +168,8 @@ async fn main() -> Result<()> {
         .expect("BINANCE_API_SECRET must be set in environment variables");
     let eisen_base_url = env::var("EISEN_BASE_URL")
         .expect("EISEN_BASE_URL must be set in environment variables");
+    let openai_api_key = env::var("OPENAI_API_KEY")
+        .expect("OPENAI_API_KEY must be set in environment variables");
 
     let reqwest_cli = reqwest::Client::new();
 
@@ -173,6 +180,7 @@ async fn main() -> Result<()> {
         binance_api_secret,
         eisen_base_url,
         reqwest_cli,
+        openai_api_key,
     };
 
     // Build our application with routes
@@ -201,6 +209,7 @@ async fn health_check() -> impl IntoResponse {
         message: "Server is running".to_string(),
         binance_portfolio: None,
         onchain_portfolio: None,
+        strategy: None,
     };
     
     (StatusCode::OK, Json(response))
@@ -221,6 +230,7 @@ async fn execute(
         message: "Portfolio data retrieved".to_string(),
         binance_portfolio: None,
         onchain_portfolio: None,
+        strategy: None,
     };
     
     // Create a Binance key from the API credentials
@@ -304,6 +314,48 @@ async fn execute(
     // Otherwise return a 404 Not Found status
     if binance_success || eisen_success {
         response.status = "success".to_string();
+        
+        // Generate strategy if we have at least one portfolio
+        if binance_success || eisen_success {
+            println!("Generating investment strategy...");
+            
+            // Create OpenAI agent
+            let openai_agent = OpenAIAgent::new(
+                state.openai_api_key.clone(),
+                "gpt-o1".to_string(),
+                0.7,
+            );
+            
+            // Create the specialized yield farming agent
+            let yield_agent = StableYieldFarmingAgent::new(openai_agent);
+            
+            // Use the token value we already extracted above
+            
+            // Try to generate a farming strategy
+            match yield_agent.get_farming_strategy(&state.eisen_base_url, &params.wallet_address, &token).await {
+                Ok(strategy_text) => {
+                    println!("Successfully generated strategy");
+                    
+                    // Try to parse the strategy as JSON
+                    match serde_json::from_str::<serde_json::Value>(&strategy_text) {
+                        Ok(strategy_json) => {
+                            response.strategy = Some(strategy_json);
+                        },
+                        Err(err) => {
+                            println!("Warning: Strategy response is not valid JSON: {}", err);
+                            // Still include the text response as a JSON string
+                            response.strategy = Some(serde_json::Value::String(strategy_text));
+                        }
+                    }
+                },
+                Err(err) => {
+                    println!("Error generating strategy: {:?}", err);
+                    // Don't fail the whole request if strategy generation fails
+                    // Just log the error and continue
+                }
+            }
+        }
+        
         println!("Returning response with status: {}", response.status);
         (StatusCode::OK, Json(response))
     } else {
@@ -332,6 +384,7 @@ impl IntoResponse for AppError {
             message,
             binance_portfolio: None,
             onchain_portfolio: None,
+            strategy: None,
         };
         
         (status, Json(response)).into_response()

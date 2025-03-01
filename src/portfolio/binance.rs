@@ -93,21 +93,29 @@ pub async fn get_binance_portfolio(base_url: &str, key: &BinanceKey) -> Result<A
     Ok(account_info)
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_get_binance_portfolio() -> Result<()> {
-    dotenv().unwrap();
-    let binance_key = BinanceKey {
-        api_key: env::var("BINANCE_API_KEY").expect("BINANCE_API_KEY must be set in .env"),
-        secret_key: env::var("BINANCE_API_SECRET").expect("BINANCE_SECRET_KEY must be set in .env"),
-    };
-    let binance_base_url =
-        if env::var("ENVIRONMENT").expect("BINANCE_ENV must be set in .env") == "test" {
-            "https://testnet.binancefuture.com"
-        } else {
-            "https://fapi.binance.com"
-        };
-    let portfolio = get_binance_portfolio(&binance_base_url, &binance_key).await?;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dotenv::dotenv;
+    use std::env;
 
-    println!("{:?}", portfolio);
-    Ok(())
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_get_binance_portfolio() -> Result<()> {
+        dotenv().unwrap();
+        let binance_key = BinanceKey {
+            api_key: env::var("BINANCE_API_KEY").expect("BINANCE_API_KEY must be set in .env"),
+            secret_key: env::var("BINANCE_API_SECRET")
+                .expect("BINANCE_SECRET_KEY must be set in .env"),
+        };
+        let binance_base_url =
+            if env::var("ENVIRONMENT").expect("BINANCE_ENV must be set in .env") == "test" {
+                "https://testnet.binancefuture.com"
+            } else {
+                "https://fapi.binance.com"
+            };
+        let portfolio = get_binance_portfolio(&binance_base_url, &binance_key).await?;
+
+        println!("{:?}", portfolio);
+        Ok(())
+    }
 }

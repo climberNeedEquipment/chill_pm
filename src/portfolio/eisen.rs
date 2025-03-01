@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -220,16 +220,23 @@ fn convert_sym_to_mapped_config_addr(token_symbol: &str) -> Result<String> {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_get_token_exposure_onchain() -> Result<()> {
-    dotenv().unwrap();
-    let base_url = env::var("EISEN_BASE_URL").expect("EISEN_BASE_URL must be set in .env");
-    let wallet_address = "0xdAf87a186345f26d107d000fAD351E79Ff696d2C";
-    let token = "eth";
-    let onchain_portfolio = get_onchain_portfolio(base_url.as_str(), wallet_address).await?;
-    let onchain_portfolio = get_token_exposure_onchain(onchain_portfolio, token)
-        .await
-        .map_err(|_| anyhow!("error getting onchain portfolio"))?;
-    println!("{:?}", onchain_portfolio);
-    Ok(())
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dotenv::dotenv;
+    use std::env;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_get_token_exposure_onchain() -> Result<()> {
+        dotenv().unwrap();
+        let base_url = env::var("EISEN_BASE_URL").expect("EISEN_BASE_URL must be set in .env");
+        let wallet_address = "0xdAf87a186345f26d107d000fAD351E79Ff696d2C";
+        let token = "eth";
+        let onchain_portfolio = get_onchain_portfolio(base_url.as_str(), wallet_address).await?;
+        let onchain_portfolio = get_token_exposure_onchain(onchain_portfolio, token)
+            .await
+            .map_err(|_| anyhow!("error getting onchain portfolio"))?;
+        println!("{:?}", onchain_portfolio);
+        Ok(())
+    }
 }

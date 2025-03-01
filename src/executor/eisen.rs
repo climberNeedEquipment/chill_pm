@@ -283,6 +283,8 @@ pub async fn get_tx_data(
 mod tests {
     use super::*;
     use tokio;
+    use dotenv::dotenv;
+    use std::env;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_chain_metadata() -> Result<()> {
