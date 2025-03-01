@@ -294,7 +294,7 @@ async fn execute(
             0.7,
         );
         
-            // Create the specialized yield farming agent
+        // Create the specialized yield farming agent
         let yield_agent = StableYieldFarmingAgent::new(openai_agent);
         
         // Use the token value we already extracted above
