@@ -13,9 +13,9 @@ use std::env;
 use std::net::SocketAddr;
 
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
-use crate::portfolio::eisen::{get_onchain_portfolio, get_token_exposure_onchain};
+use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::utils::sign::BinanceKey;
-use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent, Message};
+use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent};
 
 pub mod constants;
 pub mod executor;

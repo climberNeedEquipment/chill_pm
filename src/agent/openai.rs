@@ -1,14 +1,8 @@
-use crate::portfolio;
-use crate::portfolio::eisen::{
-    get_onchain_portfolio, get_token_exposure_onchain, UserOnchainPortfolio,
-};
-use crate::portfolio::binance::AccountInfo;
-use crate::utils::sign::BinanceKey;
 use anyhow::Result;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        ChatCompletionRequestMessage, CreateChatCompletionRequest, Role,
+        ChatCompletionRequestMessage, CreateChatCompletionRequest,
         ChatCompletionRequestSystemMessage, ChatCompletionRequestSystemMessageContent,
         ChatCompletionRequestUserMessage, ChatCompletionRequestUserMessageContent,
         ChatCompletionRequestAssistantMessage, ChatCompletionRequestAssistantMessageContent,
@@ -16,7 +10,6 @@ use async_openai::{
     Client,
 };
 use async_trait::async_trait;
-use serde_json::json;
 
 #[derive(Clone)]
 pub struct Message {
