@@ -10,52 +10,52 @@ use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Asset {
-    asset: String,
-    wallet_balance: String,
-    unrealized_profit: String,
-    margin_balance: String,
-    maint_margin: String,
-    initial_margin: String,
-    available_balance: String,
-    update_time: u64,
+pub struct Asset {
+    pub wallet_balance: String,
+    pub unrealized_profit: String,
+    pub margin_balance: String,
+    pub maint_margin: String,
+    pub initial_margin: String,
+    pub available_balance: String,
+    pub update_time: u64,
+    pub asset: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Position {
-    symbol: String,
-    position_side: String,
-    position_amt: String,
-    unrealized_profit: String,
-    notional: String,
-    initial_margin: String,
-    maint_margin: String,
+pub struct Position {
+    pub symbol: String,
+    pub position_side: String,
+    pub position_amt: String,
+    pub unrealized_profit: String,
+    pub notional: String,
+    pub initial_margin: String,
+    pub maint_margin: String,
     update_time: u64,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountInfo {
-    total_maint_margin: String,
-    total_wallet_balance: String,
-    total_unrealized_profit: String,
-    total_margin_balance: String,
-    total_position_initial_margin: String,
-    total_open_order_initial_margin: String,
-    available_balance: String,
-    assets: Vec<Asset>,
-    positions: Vec<Position>,
+    pub total_maint_margin: String,
+    pub total_wallet_balance: String,
+    pub total_unrealized_profit: String,
+    pub total_margin_balance: String,
+    pub total_position_initial_margin: String,
+    pub total_open_order_initial_margin: String,
+    pub available_balance: String,
+    pub assets: Vec<Asset>,
+    pub positions: Vec<Position>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountSummary {
-    total_initial_margin: String,
-    total_maint_margin: String,
-    total_wallet_balance: String,
-    total_unrealized_profit: String,
-    total_margin_balance: String,
+    pub total_initial_margin: String,
+    pub total_maint_margin: String,
+    pub total_wallet_balance: String,
+    pub total_unrealized_profit: String,
+    pub total_margin_balance: String,
 }
 
 pub async fn get_binance_portfolio(base_url: &str, key: &BinanceKey) -> Result<AccountInfo> {

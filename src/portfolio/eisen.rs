@@ -7,29 +7,29 @@ use std::{collections::HashMap, env};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct UnderlyingBalancesResponse {
+pub struct UnderlyingBalancesResponse {
     /// Maps asset symbols (e.g., "ETH", "BTC") to their total float amounts.
     #[serde(default)]
-    asset_total_amount: HashMap<String, f64>,
+    pub asset_total_amount: HashMap<String, f64>,
 
     /// List of chains and their corresponding assets/protocols.
     #[serde(default)]
-    chain_details: Vec<ChainDetail>,
+    pub chain_details: Vec<ChainDetail>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ChainDetail {
     /// Chain ID (e.g., 1 for Ethereum mainnet, 56 for BSC, etc.)
-    chain_id: u64,
+    pub chain_id: u64,
 
     /// Asset totals on this specific chain.
     #[serde(default)]
-    asset_total_amount_in_chain: HashMap<String, f64>,
+    pub asset_total_amount_in_chain: HashMap<String, f64>,
 
     /// Protocols available on this chain.
     #[serde(default)]
-    protocol_details: Vec<ProtocolDetail>,
+    pub protocol_details: Vec<ProtocolDetail>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,27 +96,27 @@ impl Balance {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct UserOnchainPortfolio {
-    total_exposure: f64,
-    chain_details: Vec<ChainDetailFeed>,
+pub struct UserOnchainPortfolio {
+    pub total_exposure: f64,
+    pub chain_details: Vec<ChainDetailFeed>,
 }
 #[derive(Debug, Serialize, Deserialize)]
-struct ChainDetailFeed {
-    chain_id: u64,
-    protocol_details: Vec<ProtocolDetailFeed>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ProtocolDetailFeed {
-    name: String,
-    assets: Vec<AssetFeed>,
+pub struct ChainDetailFeed {
+    pub chain_id: u64,
+    pub protocol_details: Vec<ProtocolDetailFeed>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AssetFeed {
-    symbol: String,
-    balance: f64,
-    underlying_amount: f64,
+pub struct ProtocolDetailFeed {
+    pub name: String,
+    pub assets: Vec<AssetFeed>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AssetFeed {
+    pub symbol: String,
+    pub balance: f64,
+    pub underlying_amount: f64,
 }
 pub async fn get_onchain_portfolio(
     base_url: &str,
