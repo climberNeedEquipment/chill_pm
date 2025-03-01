@@ -1,16 +1,12 @@
-use crate::executor::error::{ExchangeError, RestError};
+use crate::executor::error::ExchangeError;
 use crate::utils::sign::BinanceKey;
 use anyhow::Result;
-use dotenv::dotenv;
-use http::Request;
-use positions::{prelude::Str, Asset};
-use reqwest::header::{HeaderMap, HeaderValue};
+use positions::Asset;
+use reqwest::header::HeaderValue;
 use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Position side.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -340,43 +336,51 @@ pub async fn place_binance_order(
     Ok(order)
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_place_binance_order() -> Result<()> {
-    dotenv().unwrap();
-    let binance_key = BinanceKey {
-        api_key: env::var("BINANCE_API_KEY").expect("BINANCE_API_KEY must be set in .env"),
-        secret_key: env::var("BINANCE_API_SECRET").expect("BINANCE_SECRET_KEY must be set in .env"),
-    };
-    let binance_base_url =
-        if env::var("ENVIRONMENT").expect("BINANCE_ENV must be set in .env") == "test" {
-            "https://testnet.binancefuture.com"
-        } else {
-            "https://fapi.binance.com"
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dotenv::dotenv;
+    use std::env;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_place_binance_order() -> Result<()> {
+        dotenv().unwrap();
+        let binance_key = BinanceKey {
+            api_key: env::var("BINANCE_API_KEY").expect("BINANCE_API_KEY must be set in .env"),
+            secret_key: env::var("BINANCE_API_SECRET")
+                .expect("BINANCE_SECRET_KEY must be set in .env"),
         };
+        let binance_base_url =
+            if env::var("ENVIRONMENT").expect("BINANCE_ENV must be set in .env") == "test" {
+                "https://testnet.binancefuture.com"
+            } else {
+                "https://fapi.binance.com"
+            };
 
-    // market order
-    // let order = place_binance_order(
-    //     &binance_base_url,
-    //     &binance_key,
-    //     "ETH",
-    //     OrderSide::Buy,
-    //     Some(Decimal::from(1)),
-    //     Some(Decimal::from_i128_with_scale(260812i128, 2)),
-    //     None,
-    // )
-    // .await?;
+        // market order
+        // let order = place_binance_order(
+        //     &binance_base_url,
+        //     &binance_key,
+        //     "ETH",
+        //     OrderSide::Buy,
+        //     Some(Decimal::from(1)),
+        //     Some(Decimal::from_i128_with_scale(260812i128, 2)),
+        //     None,
+        // )
+        // .await?;
 
-    // market close
-    let order = place_binance_order(
-        &binance_base_url,
-        &binance_key,
-        "ETH",
-        OrderSide::Sell,
-        None,
-        None,
-        Some(Decimal::from_i128_with_scale(262312i128, 2)),
-    )
-    .await?;
-    println!("{:?}", order);
-    Ok(())
+        // market close
+        let order = place_binance_order(
+            &binance_base_url,
+            &binance_key,
+            "ETH",
+            OrderSide::Sell,
+            None,
+            None,
+            Some(Decimal::from_i128_with_scale(262312i128, 2)),
+        )
+        .await?;
+        println!("{:?}", order);
+        Ok(())
+    }
 }

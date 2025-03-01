@@ -85,21 +85,21 @@ impl From<BinanceIndicators> for OHLCV {
     }
 }
 
-struct BinancePriceFeed {
-    base_url: String,
-    client: ReqwestClient,
-    symbol: String,
+pub struct BinancePriceFeed<'a> {
+    pub base_url: &'a String,
+    pub client: &'a ReqwestClient,
+    pub symbol: &'a String,
 }
 
-struct BinanceOHLCVFeed {
-    base_url: String,
-    client: ReqwestClient,
-    symbol: String,
-    window_size: usize,
+pub struct BinanceOHLCVFeed {
+    pub base_url: String,
+    pub client: ReqwestClient,
+    pub symbol: String,
+    pub window_size: usize,
 }
 
-impl BinancePriceFeed {
-    fn new(base_url: String, client: ReqwestClient, symbol: String) -> Self {
+impl<'a> BinancePriceFeed<'a> {
+    pub fn new(base_url: &'a String, client: &'a ReqwestClient, symbol: &'a String) -> Self {
         Self {
             base_url,
             client,
@@ -205,7 +205,7 @@ impl BinanceOHLCVFeed {
 }
 
 #[async_trait]
-impl Feed<PriceData> for BinancePriceFeed {
+impl<'a> Feed<PriceData> for BinancePriceFeed<'a>  {
     async fn feed(&self) -> Result<PriceData, Box<dyn Error + Send + Sync>> {
         let (market_index_result, market_depth_result) =
             tokio::join!(self.fetch_index_price(), self.fetch_market_depth());

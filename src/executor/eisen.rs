@@ -1,11 +1,9 @@
-use alloy::primitives::{utils::parse_units, Address, Bytes, U256};
+use alloy::primitives::{Address, Bytes, U256};
 use alloy::signers::local::LocalWallet;
 use anyhow::Result;
-use dotenv::dotenv;
-use positions::prelude::Str;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env};
+use std::collections::HashMap;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -350,6 +348,8 @@ mod tests {
 
         Ok(())
     }
+    use dotenv::dotenv;
+    use std::env;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_chain_metadata() -> Result<()> {

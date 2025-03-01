@@ -1,7 +1,6 @@
 use anyhow::Result;
 use reqwest::Client as ReqwestClient;
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PriceData {

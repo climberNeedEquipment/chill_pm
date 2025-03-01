@@ -2,11 +2,7 @@ use crate::{constants::Interval, utils::price::PriceData};
 use anyhow::Result;
 use reqwest::Client as ReqwestClient;
 use serde_json::Value;
-use std::{
-    collections::{HashMap, VecDeque},
-    error::Error,
-    fs::OpenOptions,
-};
+use std::collections::{HashMap, VecDeque};
 use strum::IntoEnumIterator;
 
 #[derive(serde::Serialize, Debug, Clone)]
