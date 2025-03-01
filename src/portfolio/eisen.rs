@@ -17,7 +17,7 @@ pub struct UnderlyingBalancesResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ChainDetail {
+pub struct ChainDetail {
     /// Chain ID (e.g., 1 for Ethereum mainnet, 56 for BSC, etc.)
     pub chain_id: u64,
 
@@ -32,53 +32,53 @@ struct ChainDetail {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ProtocolDetail {
+pub struct ProtocolDetail {
     /// Protocol name (e.g., "native", "Lido", "AaveV3").
-    name: String,
+    pub name: String,
 
     /// Optional URL to the protocol’s logo.
     #[serde(default)]
-    logo_url: Option<String>,
+    pub logo_url: Option<String>,
 
     /// List of assets under this protocol.
     #[serde(default)]
-    assets: Vec<Asset>,
+    pub assets: Vec<Asset>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Asset {
+pub struct Asset {
     /// Contract address of the asset (could be "0x000..." for native).
-    contract_address: String,
+    pub contract_address: String,
 
     /// Symbol of the asset (e.g., "ETH", "WBTC").
-    symbol: String,
+    pub symbol: String,
 
     /// Optional URL to the asset’s icon.
     #[serde(default)]
-    icon_url: Option<String>,
+    pub icon_url: Option<String>,
 
     /// Base contract address (for derivatives, wrappers, etc.).
-    base_contract_address: String,
+    pub base_contract_address: String,
 
     /// Amount used for calculating underlying assets.
-    amount_to_calc_underlying: Balance,
+    pub amount_to_calc_underlying: Balance,
 
     /// The final underlying balance after calculations.
-    underlying_balance: Balance,
+    pub underlying_balance: Balance,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Balance {
+pub struct Balance {
     /// The raw amount as a string (e.g., "5162992717092596").
-    amount: String,
+    pub amount: String,
 
     /// The decimal places to interpret `amount` (e.g., 18 for ETH).
-    decimals: u8,
+    pub decimals: u8,
 
     /// Sign of the balance (true if positive).
-    positive_sign: bool,
+    pub positive_sign: bool,
 }
 
 impl Balance {

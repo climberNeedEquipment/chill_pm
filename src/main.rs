@@ -13,9 +13,9 @@ use std::env;
 use std::net::SocketAddr;
 
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
-use crate::portfolio::eisen::{get_onchain_portfolio, get_token_exposure_onchain};
+use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::utils::sign::BinanceKey;
-use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent, Message};
+use crate::agent::openai::{OpenAIAgent, StableYieldFarmingAgent};
 
 pub mod constants;
 pub mod executor;
@@ -241,18 +241,13 @@ async fn execute(
     
     println!("Fetching Binance portfolio data...");
     
-    // Track if we have any successful fetches
-    let mut binance_success = false;
-    let mut eisen_success = false;
-    
     // Get Binance portfolio data
-    match get_binance_portfolio(&state.binance_base_url, &binance_key).await {
+    let binance_account_info = match get_binance_portfolio(&state.binance_base_url, &binance_key).await {
         Ok(account_info) => {
             println!("Successfully retrieved Binance portfolio");
             
             // Format and print the portfolio data
-            let portfolio_str = format_binance_portfolio(&account_info);
-            println!("{}", portfolio_str);
+            println!("{}", format_binance_portfolio(&account_info));
             
             // Create a simplified account summary
             let summary = AccountSummary {
@@ -264,98 +259,79 @@ async fn execute(
             };
             
             response.binance_portfolio = Some(summary);
-            binance_success = true;
+            Some(account_info)
         },
         Err(err) => {
             println!("Error retrieving Binance portfolio: {:?}", err);
             response.message = format!("Error retrieving Binance portfolio: {}", err);
+            None
         }
-    }
+    };
     
     // Get Eisen onchain portfolio data
     let token = params.token.unwrap_or_else(|| "eth".to_string());
     println!("Fetching Eisen onchain portfolio data for token: {}", token);
     println!("Wallet address: {}", params.wallet_address);
     
-    match get_onchain_portfolio(&state.eisen_base_url, &params.wallet_address).await {
+    let onchain_portfolio = match get_onchain_portfolio(&state.eisen_base_url, &params.wallet_address).await {
         Ok(onchain_data) => {
             println!("Successfully retrieved raw onchain data");
-            
-            // Format and print the onchain data
-            let onchain_str = format_onchain_data(&onchain_data);
-            println!("{}", onchain_str);
-            
-            match get_token_exposure_onchain(onchain_data, &token).await {
-                Ok(token_exposure) => {
-                    println!("Successfully retrieved token exposure for: {}", token);
-                    
-                    // Format and print the token exposure data
-                    let exposure_str = format_token_exposure(&token_exposure, &token);
-                    println!("{}", exposure_str);
-                    
-                    // Convert to JSON for response
-                    let json_value = serde_json::to_value(&token_exposure).unwrap_or_default();
-                    response.onchain_portfolio = Some(json_value);
-                    eisen_success = true;
-                },
-                Err(err) => {
-                    println!("Error retrieving token exposure: {:?}", err);
-                    response.message = format!("Error retrieving token exposure: {}", err);
-                }
-            }
+            println!("{}", format_onchain_data(&onchain_data));
+            Some(onchain_data)
         },
         Err(err) => {
             println!("Error retrieving onchain portfolio: {:?}", err);
             response.message = format!("Error retrieving onchain portfolio: {}", err);
+            None
         }
-    }
+    };
     
     // If we have at least one portfolio, consider it a success
     // Otherwise return a 404 Not Found status
-    if binance_success || eisen_success {
+    if binance_account_info.is_some() || onchain_portfolio.is_some() {
         response.status = "success".to_string();
+        println!("Generating investment strategy...");
+            
+        // Create OpenAI agent
+        let openai_agent = OpenAIAgent::new(
+            state.openai_api_key.clone(),
+            "gpt-o1".to_string(),
+            0.7,
+        );
         
-        // Generate strategy if we have at least one portfolio
-        if binance_success || eisen_success {
-            println!("Generating investment strategy...");
-            
-            // Create OpenAI agent
-            let openai_agent = OpenAIAgent::new(
-                state.openai_api_key.clone(),
-                "gpt-o1".to_string(),
-                0.7,
-            );
-            
             // Create the specialized yield farming agent
-            let yield_agent = StableYieldFarmingAgent::new(openai_agent);
-            
-            // Use the token value we already extracted above
-            
-            // Try to generate a farming strategy
-            match yield_agent.get_farming_strategy(&state.eisen_base_url, &params.wallet_address, &token).await {
-                Ok(strategy_text) => {
-                    println!("Successfully generated strategy");
-                    
-                    // Try to parse the strategy as JSON
-                    match serde_json::from_str::<serde_json::Value>(&strategy_text) {
-                        Ok(strategy_json) => {
-                            response.strategy = Some(strategy_json);
-                        },
-                        Err(err) => {
-                            println!("Warning: Strategy response is not valid JSON: {}", err);
-                            // Still include the text response as a JSON string
-                            response.strategy = Some(serde_json::Value::String(strategy_text));
-                        }
+        let yield_agent = StableYieldFarmingAgent::new(openai_agent);
+        
+        // Use the token value we already extracted above
+        let portfolio_summary = format_onchain_data(&onchain_portfolio.unwrap());
+        let binance_portfolio_summary = format_binance_portfolio(&binance_account_info.unwrap());
+
+        let all_portfolio_summary = format!("{}\n\n{}", portfolio_summary, binance_portfolio_summary).to_string();
+
+        // Try to generate a farming strategy
+        match yield_agent.get_farming_strategy(&portfolio_summary, &token).await {
+        Ok(strategy_text) => {
+                println!("Successfully generated strategy");
+                
+                // Try to parse the strategy as JSON
+                match serde_json::from_str::<serde_json::Value>(&strategy_text) {
+                    Ok(strategy_json) => {
+                        response.strategy = Some(strategy_json);
+                    },
+                    Err(err) => {
+                        println!("Warning: Strategy response is not valid JSON: {}", err);
+                        // Still include the text response as a JSON string
+                        response.strategy = Some(serde_json::Value::String(strategy_text));
                     }
-                },
-                Err(err) => {
-                    println!("Error generating strategy: {:?}", err);
-                    // Don't fail the whole request if strategy generation fails
-                    // Just log the error and continue
                 }
+            },
+            Err(err) => {
+                println!("Error generating strategy: {:?}", err);
+                // Don't fail the whole request if strategy generation fails
+                // Just log the error and continue
             }
         }
-        
+
         println!("Returning response with status: {}", response.status);
         (StatusCode::OK, Json(response))
     } else {
