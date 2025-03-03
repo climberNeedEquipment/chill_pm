@@ -287,7 +287,7 @@ pub async fn place_binance_order(
     };
 
     let place_order_params = PlaceOrder {
-        symbol: format!("{}{}", symbol.to_uppercase(), "USDT"),
+        symbol: symbol.to_uppercase(),
         side,
         position_side: Some(PositionSide::Both),
         order_type,
