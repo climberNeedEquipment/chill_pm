@@ -636,6 +636,20 @@ async fn process_eisen_swaps(
 ) -> Result<(), Box<dyn Error>> {
     let swaps = extract_eisen_swaps(json_response);
 
+    // Print the swaps that will be executed
+    println!("Swaps to be executed:");
+    for (i, swap) in swaps.iter().enumerate() {
+        println!("Swap {}: {} -> {} (amount: {})", 
+            i + 1, 
+            swap.token_in, 
+            swap.token_out, 
+            swap.amount);
+    }
+    
+    if swaps.is_empty() {
+        println!("No swaps to execute");
+    }
+
     for swap in swaps {
         // Call the quote_and_send_tx function from executor/eisen
         let result = executor::eisen::quote_and_send_tx(
@@ -664,6 +678,16 @@ async fn process_binance_place_order(
     binance_key: &utils::sign::BinanceKey,
 ) -> Result<(), Box<dyn Error>> {
     let positions = extract_binance_place_order(json_response);
+
+    // Print the positions that will be executed
+    println!("Positions to be executed:");
+    for (i, position) in positions.iter().enumerate() {
+        println!("Position {}: {:?}", i + 1, position);
+    }
+    
+    if positions.is_empty() {
+        println!("No positions to execute");
+    }
 
     for position in positions {
         // Call the place_binance_order function
