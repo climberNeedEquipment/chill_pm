@@ -1,4 +1,5 @@
-use crate::agent::openai::{GaiaAIAgent, StableYieldFarmingAgent};
+use crate::agent::othentic::OthenticAgent;
+use crate::feed::binance::BinancePriceFeed;
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
 use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::utils::price::{fetch_binance_prices, fetch_major_crypto_prices};
@@ -217,8 +218,6 @@ async fn main() -> Result<()> {
         "https://fapi.binance.com".to_string()
     };
 
-    let gaia_api_key = std::env::var("GAIA_API_KEY").unwrap_or_else(|_| "".to_string());
-
     let base_url = env::var("EISEN_BASE_URL").expect("EISEN_BASE_URL must be set in .env");
     let rpc_url = Url::parse("https://mainnet.base.org").unwrap();
     let provider = ProviderBuilder::new()
@@ -313,43 +312,52 @@ async fn execute(
 
     println!("Fetching major crypto prices from Binance...");
 
-    // Fetch BTC and ETH prices
-    let prices = match fetch_major_crypto_prices(&state.reqwest_cli).await {
-        Ok(prices) => {
-            println!("Successfully fetched major crypto prices:");
+    let btcsymbol = "BTCUSDT".to_string();
+    let btc_price_feed =
+        BinancePriceFeed::new(&state.binance_base_url, &state.reqwest_cli, &btcsymbol);
 
-            if let Some(btc_price) = prices.get("BTC") {
-                println!("BTC Market Price: {:?}", btc_price.market_price);
-                println!("BTC Buy Price: {:?}", btc_price.buy_long_price);
-                println!("BTC Sell Price: {:?}", btc_price.sell_short_price);
-            }
+    let ethsymbol = "ETHUSDT".to_string();
+    let eth_price_feed =
+        BinancePriceFeed::new(&state.binance_base_url, &state.reqwest_cli, &ethsymbol);
 
-            if let Some(eth_price) = prices.get("ETH") {
-                println!("ETH Market Price: {:?}", eth_price.market_price);
-                println!("ETH Buy Price: {:?}", eth_price.buy_long_price);
-                println!("ETH Sell Price: {:?}", eth_price.sell_short_price);
-            }
-            prices
-        }
-        Err(err) => {
-            println!("Error fetching major crypto prices: {:?}", err);
-            response.status = "error".to_string();
-            response.message = "Failed to retrieve any portfolio data".to_string();
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response();
-        }
-    };
+    let btc_price = btc_price_feed.fetch_index_price().await;
+    let eth_price = eth_price_feed.fetch_index_price().await;
 
-    // Create a stringified version of the prices data
-    let prices_str = match serde_json::to_string_pretty(&prices) {
-        Ok(json_str) => {
-            println!("Prices JSON: {}", json_str);
-            json_str
-        }
-        Err(err) => {
-            println!("Error serializing prices to JSON: {:?}", err);
-            "{}".to_string() // Return empty JSON object on error
-        }
-    };
+    // Create a JSON object containing BTC and ETH prices
+    let mut price_data = serde_json::Map::new();
+
+    if let Ok(btc) = &btc_price {
+        price_data.insert(
+            "BTC".to_string(),
+            serde_json::Value::String(btc.mark_price.parse::<f64>().unwrap_or(0.0).to_string()),
+        );
+        println!(
+            "BTC price: {}",
+            btc.mark_price.parse::<f64>().unwrap_or(0.0)
+        );
+    } else {
+        println!("Failed to fetch BTC price");
+    }
+
+    if let Ok(eth) = &eth_price {
+        price_data.insert(
+            "ETH".to_string(),
+            serde_json::Value::String(eth.mark_price.parse::<f64>().unwrap_or(0.0).to_string()),
+        );
+        println!(
+            "ETH price: {}",
+            eth.mark_price.parse::<f64>().unwrap_or(0.0)
+        );
+    } else {
+        println!("Failed to fetch ETH price");
+    }
+
+    let price_json = serde_json::Value::Object(price_data);
+    println!("Combined price data: {}", price_json);
+
+    // Convert the price_json to a string for easier handling
+    let price_json_string = price_json.to_string();
+    println!("Stringified price data: {}", price_json_string);
 
     println!("Fetching Binance portfolio data...");
 
@@ -382,6 +390,59 @@ async fn execute(
         };
     println!("Wallet address: {}", params.wallet_address);
 
+    // Setup provider for Eisen swaps
+    let base_url = &state.eisen_base_url;
+    let rpc_url = Url::parse("https://mainnet.base.org").unwrap();
+
+    // Get private key from environment
+    let signer: PrivateKeySigner = match env::var("PRIVATE_KEY_DEPLOYER") {
+        Ok(key) => {
+            key.chars()
+                .skip(2) // Skip "0x" prefix
+                .collect::<String>()
+                .parse()
+                .unwrap_or_else(|_| {
+                    println!("Error parsing private key");
+                    panic!("Invalid private key format");
+                })
+        }
+        Err(_) => {
+            println!("PRIVATE_KEY_DEPLOYER not set in environment");
+            response.status = "error".to_string();
+            response.message = "PRIVATE_KEY_DEPLOYER not set in environment".to_string();
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response();
+        }
+    };
+
+    let wallet_addr = signer.address();
+    let wallet = EthereumWallet::from(signer);
+
+    let provider = ProviderBuilder::new()
+        .wallet(wallet.clone())
+        .on_http(rpc_url);
+    let provider = Arc::new(provider);
+
+    // Get chain metadata
+    let chain_id = match provider.get_chain_id().await {
+        Ok(id) => id,
+        Err(err) => {
+            println!("Error getting chain ID: {:?}", err);
+            response.status = "error".to_string();
+            response.message = format!("Error getting chain ID: {}", err);
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response();
+        }
+    };
+
+    let chain_data = match get_chain_metadata(base_url, chain_id).await {
+        Ok(data) => data,
+        Err(err) => {
+            println!("Error getting chain metadata: {:?}", err);
+            response.status = "error".to_string();
+            response.message = format!("Error getting chain metadata: {}", err);
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response();
+        }
+    };
+
     let onchain_portfolio =
         match get_onchain_portfolio(&state.eisen_base_url, &params.wallet_address).await {
             Ok(onchain_data) => {
@@ -402,13 +463,8 @@ async fn execute(
         response.status = "success".to_string();
         println!("Generating investment strategy...");
 
-        // Create Gaia agent
-        let client = Client::new();
-        let gaia_agent =
-            GaiaAIAgent::new(client, state.openai_api_key.clone(), "o1".to_string(), 0.7);
-
         // Create the specialized yield farming agent
-        let yield_agent = StableYieldFarmingAgent::new(gaia_agent);
+        let yield_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
 
         // Use the token value we already extracted above
         let portfolio_summary = format_onchain_data(&onchain_portfolio.unwrap());
@@ -416,10 +472,11 @@ async fn execute(
 
         let all_portfolio_summary =
             format!("{}\n\n{}", portfolio_summary, binance_portfolio_summary).to_string();
-
+        
+        let model = "o1".to_string();
         // Try to generate a farming strategy
         match yield_agent
-            .get_farming_strategy(&prices_str, &portfolio_summary)
+            .get_strategy(&model, &price_json_string, &all_portfolio_summary)
             .await
         {
             Ok(strategy_text) => {
@@ -428,7 +485,50 @@ async fn execute(
                 // Try to parse the strategy as JSON
                 match serde_json::from_str::<serde_json::Value>(&strategy_text) {
                     Ok(strategy_json) => {
-                        response.strategy = Some(strategy_json);
+                        response.strategy = Some(strategy_json.clone());
+
+                        // Pretty print the strategy JSON for better readability
+                        let pretty_json = serde_json::to_string_pretty(&strategy_json)
+                            .unwrap_or_else(|_| strategy_json.to_string());
+                        println!("Strategy JSON (pretty printed):\n{}", pretty_json);
+                        // Execute the strategy
+                        println!("Executing strategy...");
+
+                        // Process Binance orders
+                        match process_binance_place_order(
+                            &strategy_json,
+                            &state.binance_base_url,
+                            &binance_key,
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                println!("Successfully executed Binance orders");
+                            }
+                            Err(err) => {
+                                println!("Error executing Binance orders: {:?}", err);
+                                // Don't fail the whole request if Binance orders fail
+                            }
+                        }
+
+                        // Process Eisen swaps
+                        match process_eisen_swaps(
+                            &strategy_json,
+                            &provider,
+                            base_url,
+                            &chain_data,
+                            &wallet_addr,
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                println!("Successfully executed Eisen swaps");
+                            }
+                            Err(err) => {
+                                println!("Error executing Eisen swaps: {:?}", err);
+                                // Don't fail the whole request if Eisen swaps fail
+                            }
+                        }
                     }
                     Err(err) => {
                         println!("Warning: Strategy response is not valid JSON: {}", err);
