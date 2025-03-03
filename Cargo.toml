@@ -27,7 +27,7 @@ strum = "0.27.1"
 strum_macros = "0.27.1"
 ta = "0.5"
 statrs = "0.18.0"
-chrono = "0.4.36"
+chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0.89"
 talib = "0.1.2"
 bigint = "4.4.3"

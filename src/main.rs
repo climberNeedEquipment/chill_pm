@@ -31,6 +31,7 @@ pub mod executor;
 pub mod feed;
 pub mod portfolio;
 pub mod utils;
+pub mod yields;
 
 use crate::utils::parser::{extract_binance_place_order, extract_eisen_swaps};
 
