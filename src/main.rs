@@ -481,7 +481,6 @@ async fn execute(
         {
             Ok(strategy_text) => {
                 println!("Successfully generated strategy");
-
                 // Try to parse the strategy as JSON
                 match serde_json::from_str::<serde_json::Value>(&strategy_text) {
                     Ok(strategy_json) => {
@@ -489,8 +488,14 @@ async fn execute(
 
                         // Pretty print the strategy JSON for better readability
                         let pretty_json = serde_json::to_string_pretty(&strategy_json)
-                            .unwrap_or_else(|_| strategy_json.to_string());
-                        println!("Strategy JSON (pretty printed):\n{}", pretty_json);
+                            .unwrap_or_else(|_| strategy_text.clone());
+                        println!("Strategy (pretty printed):\n{}", pretty_json);
+
+                        let binance_orders = strategy_json.get("binanceOrders").unwrap();
+                        let eisen_swaps = strategy_json.get("eisenSwaps").unwrap();
+
+                        println!("Binance orders: {:?}", binance_orders);
+                        println!("Eisen swaps: {:?}", eisen_swaps);
                         // Execute the strategy
                         println!("Executing strategy...");
 
