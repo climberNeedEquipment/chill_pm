@@ -12,7 +12,7 @@ use alloy::signers::local::PrivateKeySigner;
 use anyhow::Result;
 use axum::{
     extract::{Json, State},
-    http::StatusCode,
+    http::{header, HeaderValue, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
@@ -22,9 +22,12 @@ use dotenv::dotenv;
 use executor::eisen::get_chain_metadata;
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::{env, sync::Arc};
+use tower_http::cors::{Any, CorsLayer};
+use hex;
 pub mod agent;
 pub mod cli;
 pub mod constants;
@@ -38,8 +41,7 @@ use crate::utils::parser::{extract_binance_place_order, extract_eisen_swaps};
 
 #[derive(Debug, Deserialize)]
 struct ApiParams {
-    wallet_address: String,
-    token: Option<String>, // Optional token for Eisen portfolio
+    wallet_address: String
 }
 
 #[derive(Debug, Serialize)]
@@ -256,7 +258,25 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/api/v1/execute", post(execute))
-        .with_state(state);
+        .with_state(state)
+        .layer(
+            // Configure CORS middleware
+            CorsLayer::new()
+                // Allow requests from any origin
+                .allow_origin(Any)
+                // Allow common HTTP methods
+                .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+                // Specify explicit headers instead of Any when credentials are true
+                .allow_headers([
+                    header::AUTHORIZATION,
+                    header::CONTENT_TYPE,
+                    header::ACCEPT,
+                    header::ORIGIN,
+                    header::HeaderName::from_static("x-requested-with"),
+                    header::HeaderName::from_static("access-control-request-method"),
+                    header::HeaderName::from_static("access-control-request-headers"),
+                ])
+        );
 
     // Run the server with CLI-configured host and port
     let addr: SocketAddr = format!("{}:{}", args.host, args.port)
