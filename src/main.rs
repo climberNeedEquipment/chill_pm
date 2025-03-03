@@ -20,6 +20,7 @@ use axum::{
 use clap::Parser;
 use dotenv::dotenv;
 use executor::eisen::get_chain_metadata;
+use hex;
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -27,7 +28,6 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::{env, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
-use hex;
 pub mod agent;
 pub mod cli;
 pub mod constants;
@@ -41,7 +41,7 @@ use crate::utils::parser::{extract_binance_place_order, extract_eisen_swaps};
 
 #[derive(Debug, Deserialize)]
 struct ApiParams {
-    wallet_address: String
+    wallet_address: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -265,7 +265,13 @@ async fn main() -> Result<()> {
                 // Allow requests from any origin
                 .allow_origin(Any)
                 // Allow common HTTP methods
-                .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                ])
                 // Specify explicit headers instead of Any when credentials are true
                 .allow_headers([
                     header::AUTHORIZATION,
@@ -275,7 +281,7 @@ async fn main() -> Result<()> {
                     header::HeaderName::from_static("x-requested-with"),
                     header::HeaderName::from_static("access-control-request-method"),
                     header::HeaderName::from_static("access-control-request-headers"),
-                ])
+                ]),
         );
 
     // Run the server with CLI-configured host and port
@@ -514,6 +520,8 @@ async fn execute(
 
                         // Execute the strategy
                         println!("Executing strategy...");
+
+                        let strategy_json = strategy_json.get("data").unwrap();
 
                         // Process Binance orders
                         // No need to get binance_orders and eisen_swaps here
