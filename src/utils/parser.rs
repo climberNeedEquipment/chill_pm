@@ -59,23 +59,36 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
                 if let Some(exchange_orders) =
                     binance_orders.get("orders").and_then(|o| o.as_array())
                 {
-
                     // Print the orders that will be processed
                     println!("Binance orders to be processed:");
                     for (i, order) in exchange_orders.iter().enumerate() {
-                        let token = order.get("token").and_then(|t| t.as_str()).unwrap_or("unknown");
-                        let side = order.get("side").and_then(|s| s.as_str()).unwrap_or("unknown");
-                        let amount = order.get("amount").and_then(|a| a.as_str()).unwrap_or("unknown");
-                        let price = order.get("price").and_then(|p| p.as_str()).unwrap_or("market price");
-                        
-                        println!("Order {}: {} {} {} at {}", 
-                            i + 1, 
-                            side, 
-                            amount, 
-                            token, 
-                            price);
+                        let token = order
+                            .get("token")
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("unknown");
+                        let side = order
+                            .get("side")
+                            .and_then(|s| s.as_str())
+                            .unwrap_or("unknown");
+                        let amount = order
+                            .get("amount")
+                            .and_then(|a| a.as_str())
+                            .unwrap_or("unknown");
+                        let price = order
+                            .get("price")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("market price");
+
+                        println!(
+                            "Order {}: {} {} {} at {}",
+                            i + 1,
+                            side,
+                            amount,
+                            token,
+                            price
+                        );
                     }
-                    
+
                     if exchange_orders.is_empty() {
                         println!("No Binance orders to process");
                     }
@@ -120,10 +133,12 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
                             .and_then(|q| rust_decimal::Decimal::from_str_exact(q).ok());
 
                         // Parse optional price field
-                        let price = order
-                            .get("price")
-                            .and_then(|p| p.as_str())
-                            .and_then(|p| rust_decimal::Decimal::from_str_exact(p).ok());
+                        // let price = order
+                        //     .get("price")
+                        //     .and_then(|p| p.as_str())
+                        //     .and_then(|p| rust_decimal::Decimal::from_str_exact(p).ok());
+
+                        let price = None;
 
                         // Parse optional time_in_force field
                         let time_in_force =
@@ -172,7 +187,7 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
     for (i, order) in orders.iter().enumerate() {
         println!("Order {}: {:?}", i + 1, order);
     }
-    
+
     if orders.is_empty() {
         println!("No Binance orders extracted");
     }

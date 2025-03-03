@@ -289,7 +289,7 @@ pub async fn place_binance_order(
     let place_order_params = PlaceOrder {
         symbol: format!("{}{}", symbol.to_uppercase(), "USDT"),
         side,
-        position_side: None,
+        position_side: Some(PositionSide::Both),
         order_type,
         reduce_only: None,
         quantity: quantity,
@@ -358,28 +358,28 @@ mod tests {
             };
 
         // market order
-        // let order = place_binance_order(
-        //     &binance_base_url,
-        //     &binance_key,
-        //     "ETH",
-        //     OrderSide::Buy,
-        //     Some(Decimal::from(1)),
-        //     Some(Decimal::from_i128_with_scale(260812i128, 2)),
-        //     None,
-        // )
-        // .await?;
-
-        // market close
         let order = place_binance_order(
             &binance_base_url,
             &binance_key,
             "ETH",
-            OrderSide::Sell,
+            OrderSide::Buy,
+            Some(Decimal::from(1)),
+            Some(Decimal::from_i128_with_scale(234442i128, 2)),
             None,
-            None,
-            Some(Decimal::from_i128_with_scale(262312i128, 2)),
         )
         .await?;
+
+        // market close
+        // let order = place_binance_order(
+        //     &binance_base_url,
+        //     &binance_key,
+        //     "ETH",
+        //     OrderSide::Sell,
+        //     None,
+        //     None,
+        //     Some(Decimal::from_i128_with_scale(262312i128, 2)),
+        // )
+        // .await?;
         println!("{:?}", order);
         Ok(())
     }
