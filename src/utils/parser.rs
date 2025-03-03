@@ -94,19 +94,10 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
                         };
 
                         // Parse quantity as Decimal
-                        let quantity_str = order
-                            .get("quantity")
+                        let quantity = order
+                            .get("amount")
                             .and_then(|q| q.as_str())
-                            .unwrap_or_default();
-
-                        let quantity = if !quantity_str.is_empty() {
-                            match rust_decimal::Decimal::from_str_exact(quantity_str) {
-                                Ok(q) => Some(q),
-                                Err(_) => None,
-                            }
-                        } else {
-                            None
-                        };
+                            .and_then(|q| rust_decimal::Decimal::from_str_exact(q).ok());
 
                         // Parse optional price field
                         let price = order
