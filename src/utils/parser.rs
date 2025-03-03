@@ -124,25 +124,23 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
                         let close_position = order.get("closePosition").and_then(|c| c.as_bool());
 
                         // Validate required fields
-                        if !symbol.is_empty() {
-                            orders.push(PlaceOrder {
-                                symbol,
-                                side,
-                                position_side: None,
-                                order_type,
-                                reduce_only,
-                                quantity,
-                                price,
-                                new_client_order_id: None,
-                                stop_price: None,
-                                close_position,
-                                activation_price: None,
-                                callback_rate: None,
-                                time_in_force,
-                                working_type: None,
-                                price_protect: None,
-                            });
-                        }
+                        orders.push(PlaceOrder {
+                            symbol,
+                            side,
+                            position_side: None,
+                            order_type,
+                            reduce_only,
+                            quantity,
+                            price,
+                            new_client_order_id: None,
+                            stop_price: None,
+                            close_position,
+                            activation_price: None,
+                            callback_rate: None,
+                            time_in_force,
+                            working_type: None,
+                            price_protect: None,
+                        });
                     }
                 }
             }
