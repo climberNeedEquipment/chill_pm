@@ -511,53 +511,69 @@ async fn execute(
                 // Try to parse the strategy as JSON
                 match serde_json::from_str::<serde_json::Value>(&strategy_text) {
                     Ok(strategy_json) => {
-                        response.strategy = Some(strategy_json.clone());
-
-                        // Pretty print the strategy JSON for better readability
-                        let pretty_json = serde_json::to_string_pretty(&strategy_json)
-                            .unwrap_or_else(|_| strategy_text.clone());
-                        println!("Strategy (pretty printed):\n{}", pretty_json);
-
-                        // Execute the strategy
-                        println!("Executing strategy...");
-
-                        let strategy_json =
-                            strategy_json.get("data").unwrap().get("strategy").unwrap();
-
-                        // Process Binance orders
-                        // No need to get binance_orders and eisen_swaps here
-                        match process_binance_place_order(
-                            &strategy_json,
-                            &state.binance_base_url,
-                            &binance_key,
-                        )
-                        .await
+                        if let Some(strategy_str) = strategy_json
+                            .get("data")
+                            .and_then(|d| d.get("strategy"))
+                            .and_then(|s| s.as_str())
                         {
-                            Ok(_) => {
-                                println!("Successfully executed Binance orders");
-                            }
-                            Err(err) => {
-                                println!("Error executing Binance orders: {:?}", err);
-                                // Don't fail the whole request if Binance orders fail
-                            }
-                        }
+                            // Parse the inner strategy string
+                            match serde_json::from_str::<serde_json::Value>(strategy_str) {
+                                Ok(inner_strategy_json) => {
+                                    response.strategy = Some(strategy_json.clone());
 
-                        // Process Eisen swaps
-                        match process_eisen_swaps(
-                            &strategy_json,
-                            &provider,
-                            base_url,
-                            &chain_data,
-                            &wallet_addr,
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                println!("Successfully executed Eisen swaps");
-                            }
-                            Err(err) => {
-                                println!("Error executing Eisen swaps: {:?}", err);
-                                // Don't fail the whole request if Eisen swaps fail
+                                    // Pretty print the strategy JSON for better readability
+                                    let pretty_json = serde_json::to_string_pretty(&strategy_json)
+                                        .unwrap_or_else(|_| strategy_text.clone());
+                                    println!("Strategy (pretty printed):\n{}", pretty_json);
+
+                                    // Execute the strategy
+                                    println!("Executing strategy...");
+                                    // Process Binance orders
+                                    // No need to get binance_orders and eisen_swaps here
+                                    match process_binance_place_order(
+                                        &inner_strategy_json,
+                                        &state.binance_base_url,
+                                        &binance_key,
+                                    )
+                                    .await
+                                    {
+                                        Ok(_) => {
+                                            println!("Successfully executed Binance orders");
+                                        }
+                                        Err(err) => {
+                                            println!("Error executing Binance orders: {:?}", err);
+                                            // Don't fail the whole request if Binance orders fail
+                                        }
+                                    }
+
+                                    // Process Eisen swaps
+                                    match process_eisen_swaps(
+                                        &inner_strategy_json,
+                                        &provider,
+                                        base_url,
+                                        &chain_data,
+                                        &wallet_addr,
+                                    )
+                                    .await
+                                    {
+                                        Ok(_) => {
+                                            println!("Successfully executed Eisen swaps");
+                                        }
+                                        Err(err) => {
+                                            println!("Error executing Eisen swaps: {:?}", err);
+                                            // Don't fail the whole request if Eisen swaps fail
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    println!(
+                                        "Warning: Strategy response is not valid JSON: {}",
+                                        err
+                                    );
+                                    // Still include the text response as a JSON string
+                                    response.strategy =
+                                        Some(serde_json::Value::String(strategy_text));
+                                }
                             }
                         }
                     }
