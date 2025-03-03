@@ -130,7 +130,10 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
                         let quantity = order
                             .get("amount")
                             .and_then(|q| q.as_str())
-                            .and_then(|q| rust_decimal::Decimal::from_str_exact(q).ok());
+                            .and_then(|q| rust_decimal::Decimal::from_str_exact(q).ok())
+                            .map(|q| {
+                                q.round_dp_with_strategy(3, rust_decimal::RoundingStrategy::ToZero)
+                            });
 
                         // Parse optional price field
                         // let price = order
