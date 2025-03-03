@@ -42,6 +42,8 @@
 // // kelp dao
 // // https://universe.kelpdao.xyz/rseth/totalApy
 // // https://universe.kelpdao.xyz/rseth/gainApy
+use super::{Yield, APR};
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -79,7 +81,7 @@ struct DuneRow {
     eigen_staking_apr: f64,
     eth_eigen_price_ratio: f64,
 }
-pub async fn fetch_eigen_apr() -> Result<EigenYield, Box<dyn Error>> {
+async fn fetch_eigen_apr() -> Result<EigenYield, Box<dyn Error>> {
     // You'll need to get an API key from Dune Analytics
     let dune_api_key = std::env::var("DUNE_API_KEY").expect("DUNE_API_KEY must be set");
     let client = reqwest::Client::new();
@@ -112,6 +114,30 @@ pub async fn fetch_eigen_apr() -> Result<EigenYield, Box<dyn Error>> {
     })
 }
 
+#[derive(Debug, Deserialize)]
+pub struct Eigen {}
+#[async_trait]
+impl Yield for Eigen {
+    fn get_symbol() -> String {
+        "eigenlayer".to_string()
+    }
+
+    async fn get_apr<'a>(&'a self) -> Result<Vec<APR>, Box<dyn Error + 'a>> {
+        let apr = fetch_eigen_apr().await?;
+        Ok(vec![
+            APR {
+                symbol: "StrategyBase(EIGEN)".to_string(),
+                deposit_apr: apr.eigen_staking_apr,
+                borrow_apr: None,
+            },
+            APR {
+                symbol: "StrategyBase(ETH)".to_string(),
+                deposit_apr: apr.eth_staking_apr,
+                borrow_apr: None,
+            },
+        ])
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

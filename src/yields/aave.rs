@@ -1,3 +1,5 @@
+use crate::yields::{Yield, APR};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
@@ -10,6 +12,31 @@ struct AaveResponse {
 #[derive(Debug, Deserialize)]
 struct AaveData {
     reserves: Vec<Reserve>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Aave {}
+
+#[async_trait]
+impl Yield for Aave {
+    fn get_symbol() -> String {
+        "aave".to_string()
+    }
+
+    async fn get_apr<'a>(&'a self) -> Result<Vec<APR>, Box<dyn Error + 'a>> {
+        // Example function to demonstrate usage
+        let yields = fetch_aave_yields().await?;
+        let mut aprs = Vec::new();
+        for yield_data in yields {
+            aprs.push(APR {
+                symbol: yield_data.symbol,
+                deposit_apr: yield_data.deposit_apr,
+                borrow_apr: Some(yield_data.borrow_apr),
+            });
+        }
+
+        Ok(aprs)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,13 +67,13 @@ struct PriceOracleAsset {
 
 // Structure to hold calculated APR data
 #[derive(Debug, Serialize)]
-pub struct AaveYield {
+struct AaveYield {
     pub symbol: String,
     pub deposit_apr: f64,
     pub borrow_apr: f64,
 }
 
-pub async fn fetch_aave_yields() -> Result<Vec<AaveYield>, Box<dyn Error>> {
+async fn fetch_aave_yields() -> Result<Vec<AaveYield>, Box<dyn Error>> {
     let client = reqwest::Client::new();
 
     // GraphQL query to fetch AAVE reserves data
@@ -116,21 +143,6 @@ fn parse_ray_to_apr(ray_rate: &str) -> f64 {
     (rate / ray) * 100.0 // This seems to match the provided examples better
 }
 
-// Example function to demonstrate usage
-pub async fn get_aave_yields() -> Result<(), Box<dyn Error>> {
-    let yields = fetch_aave_yields().await?;
-
-    println!("AAVE Yields:");
-    for yield_data in yields {
-        println!(
-            "{}: Deposit APR: {:.2}%, Borrow APR: {:.2}%",
-            yield_data.symbol, yield_data.deposit_apr, yield_data.borrow_apr
-        );
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,8 +153,10 @@ mod tests {
         assert!(!yields.is_empty());
     }
     #[tokio::test]
-    async fn test_get_aave_yields() {
-        let result = get_aave_yields().await;
-        assert!(result.is_ok());
+    async fn test_get_aave_yields() -> Result<(), Box<dyn Error>> {
+        let aave = Aave {};
+        let result = aave.get_apr().await?;
+        println!("{:?}", result);
+        Ok(())
     }
 }
