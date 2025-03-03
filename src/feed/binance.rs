@@ -1,6 +1,7 @@
 use super::{Feed, Processor};
 use crate::{constants::Interval, utils::price::PriceData};
 use async_trait::async_trait;
+use chrono::Utc;
 use reqwest::Client as ReqwestClient;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -31,10 +32,8 @@ pub struct DepthResponse {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FundingRateResponse {
-    pub sym: u64,
-    pub bids: Vec<(String, String)>,
-    pub asks: Vec<(String, String)>,
+struct FundingRateResponse {
+    funding_rates: Vec<FundingRate>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -205,13 +204,19 @@ impl BinanceOHLCVFeed {
 }
 
 #[async_trait]
-impl<'a> Feed<PriceData> for BinancePriceFeed<'a>  {
+impl<'a> Feed<PriceData> for BinancePriceFeed<'a> {
     async fn feed(&self) -> Result<PriceData, Box<dyn Error + Send + Sync>> {
-        let (market_index_result, market_depth_result) =
-            tokio::join!(self.fetch_index_price(), self.fetch_market_depth());
+        let (market_index_result, market_depth_result, funding_rate_result) = tokio::join!(
+            self.fetch_index_price(),
+            self.fetch_market_depth(),
+            self.fetch_funding_rate(
+                (Utc::now().timestamp_millis() - 60 * 60 * 8 * 1000) as u64, // 8 hours ago for funding rate since it's updated every 8 hours
+                Utc::now().timestamp_millis() as u64,
+            )
+        );
         let market_index = market_index_result?;
         let market_depth = market_depth_result?;
-
+        let funding_rate = funding_rate_result?;
         Ok(PriceData {
             timestamp: market_index.time.into(),
             market_price: market_index.mark_price.parse::<f64>().ok(),
@@ -224,6 +229,11 @@ impl<'a> Feed<PriceData> for BinancePriceFeed<'a>  {
                 .bids
                 .first()
                 .map(|x| x.0.parse::<f64>().ok())
+                .flatten(),
+            cur_funding_rate: funding_rate
+                .funding_rates
+                .last()
+                .map(|x| x.funding_rate.parse::<f64>().ok())
                 .flatten(),
         })
     }
