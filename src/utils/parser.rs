@@ -59,6 +59,26 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
                 if let Some(exchange_orders) =
                     binance_orders.get("orders").and_then(|o| o.as_array())
                 {
+
+                    // Print the orders that will be processed
+                    println!("Binance orders to be processed:");
+                    for (i, order) in exchange_orders.iter().enumerate() {
+                        let token = order.get("token").and_then(|t| t.as_str()).unwrap_or("unknown");
+                        let side = order.get("side").and_then(|s| s.as_str()).unwrap_or("unknown");
+                        let amount = order.get("amount").and_then(|a| a.as_str()).unwrap_or("unknown");
+                        let price = order.get("price").and_then(|p| p.as_str()).unwrap_or("market price");
+                        
+                        println!("Order {}: {} {} {} at {}", 
+                            i + 1, 
+                            side, 
+                            amount, 
+                            token, 
+                            price);
+                    }
+                    
+                    if exchange_orders.is_empty() {
+                        println!("No Binance orders to process");
+                    }
                     for order in exchange_orders {
                         let symbol = order
                             .get("token")
@@ -147,5 +167,14 @@ pub fn extract_binance_place_order(json_response: &serde_json::Value) -> Vec<Pla
         }
     }
 
+    // Print orders for debugging
+    println!("Extracted Binance orders:");
+    for (i, order) in orders.iter().enumerate() {
+        println!("Order {}: {:?}", i + 1, order);
+    }
+    
+    if orders.is_empty() {
+        println!("No Binance orders extracted");
+    }
     orders
 }
