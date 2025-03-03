@@ -19,5 +19,5 @@ pub struct APR {
 #[async_trait]
 pub trait Yield {
     fn get_symbol() -> String;
-    async fn get_apr<'a>(&'a self) -> Result<Vec<APR>, Box<dyn Error + 'a>>;
+    async fn get_apr(&self) -> Result<Vec<APR>, Box<dyn Error>>;
 }

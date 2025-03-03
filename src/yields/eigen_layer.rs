@@ -122,7 +122,7 @@ impl Yield for Eigen {
         "eigenlayer".to_string()
     }
 
-    async fn get_apr<'a>(&'a self) -> Result<Vec<APR>, Box<dyn Error + 'a>> {
+    async fn get_apr(&self) -> Result<Vec<APR>, Box<dyn Error>> {
         let apr = fetch_eigen_apr().await?;
         Ok(vec![
             APR {

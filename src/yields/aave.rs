@@ -23,7 +23,7 @@ impl Yield for Aave {
         "aave".to_string()
     }
 
-    async fn get_apr<'a>(&'a self) -> Result<Vec<APR>, Box<dyn Error + 'a>> {
+    async fn get_apr(&self) -> Result<Vec<APR>, Box<dyn Error>> {
         // Example function to demonstrate usage
         let yields = fetch_aave_yields().await?;
         let mut aprs = Vec::new();
