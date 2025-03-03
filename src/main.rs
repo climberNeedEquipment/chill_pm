@@ -473,7 +473,7 @@ async fn execute(
 
         let all_portfolio_summary =
             format!("{}\n\n{}", portfolio_summary, binance_portfolio_summary).to_string();
-        
+
         let model = "o1".to_string();
         // Try to generate a farming strategy
         match yield_agent
@@ -492,15 +492,11 @@ async fn execute(
                             .unwrap_or_else(|_| strategy_text.clone());
                         println!("Strategy (pretty printed):\n{}", pretty_json);
 
-                        let binance_orders = strategy_json.get("binanceOrders").unwrap();
-                        let eisen_swaps = strategy_json.get("eisenSwaps").unwrap();
-
-                        println!("Binance orders: {:?}", binance_orders);
-                        println!("Eisen swaps: {:?}", eisen_swaps);
                         // Execute the strategy
                         println!("Executing strategy...");
 
                         // Process Binance orders
+                        // No need to get binance_orders and eisen_swaps here
                         match process_binance_place_order(
                             &strategy_json,
                             &state.binance_base_url,
