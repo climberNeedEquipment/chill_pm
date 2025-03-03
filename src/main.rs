@@ -521,7 +521,8 @@ async fn execute(
                         // Execute the strategy
                         println!("Executing strategy...");
 
-                        let strategy_json = strategy_json.get("data").unwrap();
+                        let strategy_json =
+                            strategy_json.get("data").unwrap().get("strategy").unwrap();
 
                         // Process Binance orders
                         // No need to get binance_orders and eisen_swaps here
