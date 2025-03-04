@@ -3,7 +3,9 @@ use crate::feed::binance::BinancePriceFeed;
 use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
 use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::utils::price::{fetch_binance_prices, fetch_major_crypto_prices};
+use crate::executor::eisen::get_balance_allow;
 use crate::utils::sign::BinanceKey;
+use crate::utils::format;
 use alloy::network::{EthereumWallet, TransactionBuilder, TransactionResponse};
 use alloy::primitives::U256;
 use alloy::providers::{Provider, ProviderBuilder};
@@ -65,137 +67,6 @@ struct AppState {
     eisen_base_url: String,
     reqwest_cli: reqwest::Client,
     openai_api_key: String,
-}
-
-// Helper function to format Binance portfolio data
-fn format_binance_portfolio(account_info: &AccountInfo) -> String {
-    let mut output = String::new();
-
-    output.push_str(&format!("Binance Portfolio Summary:\n"));
-    output.push_str(&format!(
-        "Wallet Balance: {}\n",
-        account_info.total_wallet_balance
-    ));
-    output.push_str(&format!(
-        "Unrealized Profit: {}\n",
-        account_info.total_unrealized_profit
-    ));
-    output.push_str(&format!(
-        "Margin Balance: {}\n",
-        account_info.total_margin_balance
-    ));
-
-    // Format assets
-    if !account_info.assets.is_empty() {
-        output.push_str("\nAssets:\n");
-        for (i, asset) in account_info.assets.iter().enumerate().take(5) {
-            output.push_str(&format!(
-                "  Asset {}: {} - Balance: {}\n",
-                i + 1,
-                asset.asset,
-                asset.wallet_balance
-            ));
-        }
-        if account_info.assets.len() > 5 {
-            output.push_str(&format!(
-                "  ... and {} more assets\n",
-                account_info.assets.len() - 5
-            ));
-        }
-    }
-
-    // Format positions
-    let active_positions: Vec<_> = account_info
-        .positions
-        .iter()
-        .filter(|p| p.position_amt != "0")
-        .collect();
-
-    if !active_positions.is_empty() {
-        output.push_str("\nActive Positions:\n");
-        for (i, position) in active_positions.iter().enumerate().take(5) {
-            output.push_str(&format!(
-                "  Position {}: {} - Amount: {}, Unrealized PnL: {}\n",
-                i + 1,
-                position.symbol,
-                position.position_amt,
-                position.unrealized_profit
-            ));
-        }
-        if active_positions.len() > 5 {
-            output.push_str(&format!(
-                "  ... and {} more positions\n",
-                active_positions.len() - 5
-            ));
-        }
-    }
-
-    output
-}
-
-// Helper function to format Eisen onchain data
-fn format_onchain_data<T>(onchain_data: &T) -> String
-where
-    T: std::fmt::Debug,
-{
-    format!("Onchain Portfolio Data:\n{:#?}", onchain_data)
-}
-
-// Helper function to format token exposure data
-fn format_token_exposure(
-    token_exposure: &portfolio::eisen::UserOnchainPortfolio,
-    token: &str,
-) -> String {
-    let mut output = String::new();
-
-    output.push_str(&format!("Token Exposure for {}:\n", token));
-    output.push_str(&format!(
-        "Total Exposure: {}\n",
-        token_exposure.total_exposure
-    ));
-
-    // Format chain details
-    if !token_exposure.chain_details.is_empty() {
-        output.push_str("\nChain Details:\n");
-        for chain in token_exposure.chain_details.iter().take(3) {
-            output.push_str(&format!("  Chain ID: {}\n", chain.chain_id));
-
-            if !chain.protocol_details.is_empty() {
-                for protocol in chain.protocol_details.iter().take(3) {
-                    output.push_str(&format!("    Protocol: {}\n", protocol.name));
-
-                    if !protocol.assets.is_empty() {
-                        for asset in protocol.assets.iter().take(3) {
-                            output.push_str(&format!(
-                                "      Asset: {}, Balance: {}, Underlying: {}\n",
-                                asset.symbol, asset.balance, asset.underlying_amount
-                            ));
-                        }
-                        if protocol.assets.len() > 3 {
-                            output.push_str(&format!(
-                                "      ... and {} more assets\n",
-                                protocol.assets.len() - 3
-                            ));
-                        }
-                    }
-                }
-                if chain.protocol_details.len() > 3 {
-                    output.push_str(&format!(
-                        "    ... and {} more protocols\n",
-                        chain.protocol_details.len() - 3
-                    ));
-                }
-            }
-        }
-        if token_exposure.chain_details.len() > 3 {
-            output.push_str(&format!(
-                "  ... and {} more chains\n",
-                token_exposure.chain_details.len() - 3
-            ));
-        }
-    }
-
-    output
 }
 
 #[tokio::main]
@@ -310,6 +181,7 @@ async fn health_check() -> impl IntoResponse {
     (StatusCode::OK, Json(response))
 }
 
+
 // Handler for POST /api/v1/execute
 async fn execute(
     State(state): State<AppState>,
@@ -395,7 +267,7 @@ async fn execute(
                 println!("Successfully retrieved Binance portfolio");
 
                 // Format and print the portfolio data
-                println!("{}", format_binance_portfolio(&account_info));
+                println!("{}", format::format_binance_portfolio(&account_info));
 
                 // Create a simplified account summary
                 let summary = AccountSummary {
@@ -470,23 +342,23 @@ async fn execute(
         }
     };
 
-    let onchain_portfolio =
-        match get_onchain_portfolio(&state.eisen_base_url, &params.wallet_address).await {
-            Ok(onchain_data) => {
-                println!("Successfully retrieved raw onchain data");
-                println!("{}", format_onchain_data(&onchain_data));
-                Some(onchain_data)
+    let base_chain_portfolio = 
+        match executor::eisen::get_balance_allow(base_url, 8453, params.wallet_address.clone()).await {
+            Ok(portfolio) => {
+                println!("Successfully retrieved base chain portfolio");
+                println!("Portfolio: {:?}", portfolio);
+                Some(portfolio)
             }
             Err(err) => {
-                println!("Error retrieving onchain portfolio: {:?}", err);
-                response.message = format!("Error retrieving onchain portfolio: {}", err);
+                println!("Error retrieving base chain portfolio: {:?}", err);
+                response.message = format!("Error retrieving base chain portfolio: {}", err);
                 None
             }
         };
 
     // If we have at least one portfolio, consider it a success
     // Otherwise return a 404 Not Found status
-    if binance_account_info.is_some() || onchain_portfolio.is_some() {
+    if binance_account_info.is_some() || base_chain_portfolio.is_some() {
         response.status = "success".to_string();
         println!("Generating investment strategy...");
 
@@ -494,8 +366,8 @@ async fn execute(
         let yield_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
 
         // Use the token value we already extracted above
-        let portfolio_summary = format_onchain_data(&onchain_portfolio.unwrap());
-        let binance_portfolio_summary = format_binance_portfolio(&binance_account_info.unwrap());
+        let portfolio_summary = format!("{:?}", base_chain_portfolio.unwrap());
+        let binance_portfolio_summary = format::format_binance_portfolio(&binance_account_info.unwrap());
 
         let all_portfolio_summary =
             format!("{}\n\n{}", portfolio_summary, binance_portfolio_summary).to_string();
@@ -522,7 +394,7 @@ async fn execute(
                                     response.strategy = Some(strategy_json.clone());
 
                                     // Pretty print the strategy JSON for better readability
-                                    let pretty_json = serde_json::to_string_pretty(&strategy_json)
+                                    let pretty_json = serde_json::to_string_pretty(&inner_strategy_json)
                                         .unwrap_or_else(|_| strategy_text.clone());
                                     println!("Strategy (pretty printed):\n{}", pretty_json);
 

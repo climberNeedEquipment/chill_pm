@@ -15,6 +15,50 @@ pub struct UnderlyingBalancesResponse {
     pub chain_details: Vec<ChainDetail>,
 }
 
+impl std::fmt::Display for UnderlyingBalancesResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Portfolio Summary:")?;
+        
+        // Display chain details
+        if !self.chain_details.is_empty() {
+            writeln!(f, "\nChain Details:")?;
+            for chain in &self.chain_details {
+                if chain.chain_id != 8453 {
+                    continue;
+                }
+                writeln!(f, "  Chain ID: {}", chain.chain_id)?;
+                
+                // Display assets in this chain
+                if !chain.asset_total_amount_in_chain.is_empty() {
+                    writeln!(f, "    Assets in Chain:")?;
+                    for (symbol, amount) in &chain.asset_total_amount_in_chain {
+                        writeln!(f, "      {}: {:.6}", symbol, amount)?;
+                    }
+                }
+                
+                // Display protocols in this chain
+                if !chain.protocol_details.is_empty() {
+                    writeln!(f, "    Protocols:")?;
+                    for protocol in &chain.protocol_details {
+                        writeln!(f, "      {}", protocol.name)?;
+                        
+                        // Display assets in this protocol
+                        if !protocol.assets.is_empty() {
+                            writeln!(f, "        Assets:")?;
+                            for asset in &protocol.assets {
+                                writeln!(f, "          {} ({})", asset.symbol, asset.contract_address)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+}
+
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChainDetail {
@@ -138,6 +182,7 @@ pub async fn get_onchain_portfolio(
         .await
         .map_err(|_| anyhow!("get request err"))?;
     let data: UnderlyingBalancesResponse = response.json().await?;
+
     Ok(data)
 }
 

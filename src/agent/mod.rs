@@ -1,5 +1,4 @@
 pub mod openai;
-pub mod yieldfarm;
 pub mod othentic;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

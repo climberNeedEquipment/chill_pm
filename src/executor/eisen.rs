@@ -6,6 +6,7 @@ use alloy::providers::{Provider, ProviderBuilder, WalletProvider};
 use alloy::rpc::types::TransactionRequest;
 use alloy::signers::local::LocalWallet;
 use anyhow::Result;
+use itertools::Itertools;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,15 +14,15 @@ use std::collections::HashMap;
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BalanceAllowResponse {
-    result: Vec<BalanceAllow>,
+    pub result: Vec<BalanceAllow>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BalanceAllow {
-    token_address: String,
-    balance: String,
-    allowance: String,
+    pub token_address: String,
+    pub balance: String,
+    //allowance: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -176,11 +177,17 @@ fn convert_chain_id_to_name(chain_id: u64) -> String {
     }
 }
 
-async fn get_balance_allow(
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenBalance {
+    symbol: String,
+    balance: f64
+}
+
+pub async fn get_balance_allow(
     base_url: &str,
     chain_id: u64,
     wallet_addr: String,
-) -> Result<BalanceAllowResponse> {
+) -> Result<Vec<TokenBalance>> {
     let url = format!(
         "{}/chains/{}/balances?walletAddress={}",
         base_url, chain_id, wallet_addr
@@ -196,8 +203,18 @@ async fn get_balance_allow(
     }
 
     let metadata: BalanceAllowResponse = response.json().await?;
-
-    Ok(metadata)
+    let chain_metadata = get_chain_metadata(base_url, chain_id).await?;
+    let balance_allow = metadata.result.iter().filter(|token| {
+        token.balance != "0" 
+    }).map(|token| {
+        let symbol = chain_metadata.addr_to_sym.get(token.token_address.as_str()).unwrap();
+        let decimals = chain_metadata.sym_to_addr_n_decimals.get(symbol).unwrap().1;
+        TokenBalance{
+            symbol: symbol.to_string(),
+            balance: token.balance.parse::<f64>().unwrap() / 10.0_f64.powi(decimals as i32)
+        }
+    }).collect();
+    Ok(balance_allow)
 }
 pub async fn get_chain_metadata(base_url: &str, chain_id: u64) -> Result<ChainData> {
     let url = format!("{}/chains/{}/metadata", base_url, chain_id);
@@ -420,21 +437,6 @@ mod tests {
         Ok(())
     }
     use std::sync::Arc;
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn get_balance_allow_test() -> Result<()> {
-        dotenv().unwrap();
-
-        let base_url = env::var("EISEN_BASE_URL").expect("EISEN_BASE_URL must be set in .env");
-        let chain_id = 8453;
-        let wallet_addr = "0xdAf87a186345f26d107d000fAD351E79Ff696d2C".to_string();
-
-        let result = get_balance_allow(&base_url, chain_id, wallet_addr).await?;
-
-        println!("{:?}", result);
-
-        Ok(())
-    }
     use dotenv::dotenv;
     use std::env;
 
