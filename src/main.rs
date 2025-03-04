@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
     // Build our application with routes
     let app = Router::new()
         .route("/health", get(handlers::health_check))
-        .route("/api/v1/execute", post(handlers::execute))
+        .route("/api/v1/execute", post(handlers::generate_strategy))
         .with_state(state)
         .layer(
             // Configure CORS middleware

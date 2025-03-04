@@ -94,7 +94,7 @@ impl TimeframeData {
         let k = 2.0 / (period as f64 + 1.0);
         match previous_ema {
             Some(ema) => (current_price - ema) * k + ema,
-            None => current_price,
+            _ => current_price,
         }
     }
 
@@ -295,16 +295,4 @@ impl BinanceData {
 
         Ok(indicators)
     }
-}
-
-fn round_to_one_decimal(value: f64) -> f64 {
-    (value * 10.0).round() / 10.0
-}
-
-#[derive(Debug)]
-struct BinancePriceData {
-    timestamp: u128,
-    market_price: f64,
-    best_bid: f64,
-    best_ask: f64,
 }

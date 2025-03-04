@@ -8,7 +8,7 @@ use crate::processors::{process_binance_place_order, process_eisen_swaps};
 use crate::types;
 use crate::utils::format;
 use crate::utils::sign::BinanceKey;
-use alloy::network::{EthereumWallet, TransactionBuilder, TransactionResponse};
+use alloy::network::EthereumWallet;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
 use axum::{
@@ -38,12 +38,12 @@ pub async fn health_check() -> Result<impl IntoResponse, AppError> {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ExecuteParams {
+pub struct GenerateStrategyParams {
     pub wallet_address: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ExecuteResponse {
+pub struct GenerateStrategyResponse {
     pub status: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,9 +55,9 @@ pub struct ExecuteResponse {
 }
 
 // Handler for POST /api/v1/execute
-pub async fn execute(
+pub async fn generate_strategy(
     State(state): State<types::AppState>,
-    Json(params): Json<ExecuteParams>,
+    Json(params): Json<GenerateStrategyParams>,
 ) -> impl IntoResponse {
     println!(
         "Processing request with wallet address: {}",
@@ -67,7 +67,7 @@ pub async fn execute(
     println!("Using Eisen base URL: {}", state.eisen_base_url);
 
     // Create a response object that we'll populate
-    let mut response = ExecuteResponse {
+    let mut response = GenerateStrategyResponse {
         status: "success".to_string(),
         message: "Portfolio data retrieved".to_string(),
         binance_portfolio: None,
