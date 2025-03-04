@@ -1,22 +1,15 @@
-use crate::agent::othentic::OthenticAgent;
-use crate::feed::binance::BinancePriceFeed;
 
-use crate::utils::format;
 
 use anyhow::Result;
 use axum::{
-    extract::{Json, State},
-    http::{header, Method, StatusCode},
-    response::{IntoResponse, Response},
+    http::{header, Method},
     routing::{get, post},
     Router,
 };
 use clap::Parser;
 use dotenv::dotenv;
-use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::net::SocketAddr;
-use std::{env, sync::Arc};
+use std::env;
 use tower_http::cors::{Any, CorsLayer};
 pub mod agent;
 pub mod cli;
@@ -31,8 +24,6 @@ pub mod types;
 pub mod yields;
 pub mod processors;
 
-use crate::utils::parser::{extract_binance_place_order, extract_eisen_swaps};
-use crate::handlers::health_check;
 
 
 #[tokio::main]
