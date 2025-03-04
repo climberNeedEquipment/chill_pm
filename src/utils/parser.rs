@@ -1,7 +1,6 @@
 use crate::executor::binance::PlaceOrder;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::error::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct EisenSwap {

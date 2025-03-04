@@ -1,20 +1,15 @@
 use crate::agent::othentic::OthenticAgent;
 use crate::feed::binance::BinancePriceFeed;
-use crate::portfolio::binance::{get_binance_portfolio, AccountInfo, AccountSummary};
-use crate::portfolio::eisen::get_onchain_portfolio;
-use crate::utils::price::{fetch_binance_prices, fetch_major_crypto_prices};
-use crate::executor::eisen::get_balance_allow;
+use crate::portfolio::binance::{get_binance_portfolio, AccountSummary};
 use crate::utils::sign::BinanceKey;
 use crate::utils::format;
 use alloy::network::{EthereumWallet, TransactionBuilder, TransactionResponse};
-use alloy::primitives::U256;
 use alloy::providers::{Provider, ProviderBuilder};
-use alloy::rpc::types::TransactionRequest;
 use alloy::signers::local::PrivateKeySigner;
 use anyhow::Result;
 use axum::{
     extract::{Json, State},
-    http::{header, HeaderValue, Method, StatusCode},
+    http::{header, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
@@ -22,10 +17,8 @@ use axum::{
 use clap::Parser;
 use dotenv::dotenv;
 use executor::eisen::get_chain_metadata;
-use hex;
-use reqwest::{Client, Url};
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::{env, sync::Arc};

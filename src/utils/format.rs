@@ -1,4 +1,3 @@
-use crate::portfolio;
 use crate::portfolio::binance::AccountInfo;
 
 // Helper function to format Binance portfolio data

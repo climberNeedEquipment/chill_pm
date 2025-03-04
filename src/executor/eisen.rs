@@ -1,10 +1,8 @@
-use alloy::network::EthereumWallet;
 use alloy::network::TransactionBuilder;
 use alloy::primitives::FixedBytes;
-use alloy::primitives::{hex, Address, Bytes, U256};
-use alloy::providers::{Provider, ProviderBuilder, WalletProvider};
+use alloy::primitives::{Address, Bytes, U256};
+use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
-use alloy::signers::local::LocalWallet;
 use anyhow::Result;
 use itertools::Itertools;
 use reqwest::Client;
@@ -411,14 +409,10 @@ mod tests {
     use tokio;
 
     use alloy::{
-        consensus::BlockHeader,
-        eips::BlockId,
-        network::{AnyNetwork, TransactionBuilder, TransactionResponse},
+        network::{TransactionBuilder, TransactionResponse},
         primitives::U256,
         providers::{Provider, ProviderBuilder},
-        rpc::types::{
-            serde_helpers::WithOtherFields, Block, BlockTransactionsKind, TransactionRequest,
-        },
+        rpc::types::TransactionRequest,
     };
     #[test]
     fn cmp_amount() -> Result<()> {

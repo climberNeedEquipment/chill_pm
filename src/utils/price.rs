@@ -109,7 +109,7 @@ pub async fn fetch_major_crypto_prices(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    
 
     #[tokio::test]
     async fn test_fetch_binance_prices() {

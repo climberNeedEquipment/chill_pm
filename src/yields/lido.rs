@@ -2,7 +2,6 @@ use super::{Yield, APR};
 use async_trait::async_trait;
 use reqwest::Error as ReqwestError;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::error::Error;
 #[derive(Deserialize, Debug)]
 struct AprData {

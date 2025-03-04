@@ -12,8 +12,6 @@ use async_openai::{
     Client,
 };
 use async_trait::async_trait;
-use reqwest::Client as ReqClient;
-use serde::{Deserialize, Serialize};
 
 pub struct OpenAIAgent {
     client: Client<OpenAIConfig>,
