@@ -50,4 +50,4 @@ impl IntoResponse for AppError {
     }
 }
 
-impl std::error::Error for AppError {} 
+impl std::error::Error for AppError {}

@@ -1,4 +1,3 @@
-
 // Application state that will be shared between handlers
 #[derive(Clone)]
 pub struct AppState {

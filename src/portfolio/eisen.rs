@@ -18,7 +18,7 @@ pub struct UnderlyingBalancesResponse {
 impl std::fmt::Display for UnderlyingBalancesResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Portfolio Summary:")?;
-        
+
         // Display chain details
         if !self.chain_details.is_empty() {
             writeln!(f, "\nChain Details:")?;
@@ -27,7 +27,7 @@ impl std::fmt::Display for UnderlyingBalancesResponse {
                     continue;
                 }
                 writeln!(f, "  Chain ID: {}", chain.chain_id)?;
-                
+
                 // Display assets in this chain
                 if !chain.asset_total_amount_in_chain.is_empty() {
                     writeln!(f, "    Assets in Chain:")?;
@@ -35,29 +35,32 @@ impl std::fmt::Display for UnderlyingBalancesResponse {
                         writeln!(f, "      {}: {:.6}", symbol, amount)?;
                     }
                 }
-                
+
                 // Display protocols in this chain
                 if !chain.protocol_details.is_empty() {
                     writeln!(f, "    Protocols:")?;
                     for protocol in &chain.protocol_details {
                         writeln!(f, "      {}", protocol.name)?;
-                        
+
                         // Display assets in this protocol
                         if !protocol.assets.is_empty() {
                             writeln!(f, "        Assets:")?;
                             for asset in &protocol.assets {
-                                writeln!(f, "          {} ({})", asset.symbol, asset.contract_address)?;
+                                writeln!(
+                                    f,
+                                    "          {} ({})",
+                                    asset.symbol, asset.contract_address
+                                )?;
                             }
                         }
                     }
                 }
             }
         }
-        
+
         Ok(())
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

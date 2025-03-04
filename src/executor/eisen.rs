@@ -178,7 +178,7 @@ fn convert_chain_id_to_name(chain_id: u64) -> String {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenBalance {
     symbol: String,
-    balance: f64
+    balance: f64,
 }
 
 pub async fn get_balance_allow(
@@ -202,16 +202,22 @@ pub async fn get_balance_allow(
 
     let metadata: BalanceAllowResponse = response.json().await?;
     let chain_metadata = get_chain_metadata(base_url, chain_id).await?;
-    let balance_allow = metadata.result.iter().filter(|token| {
-        token.balance != "0" 
-    }).map(|token| {
-        let symbol = chain_metadata.addr_to_sym.get(token.token_address.as_str()).unwrap();
-        let decimals = chain_metadata.sym_to_addr_n_decimals.get(symbol).unwrap().1;
-        TokenBalance{
-            symbol: symbol.to_string(),
-            balance: token.balance.parse::<f64>().unwrap() / 10.0_f64.powi(decimals as i32)
-        }
-    }).collect();
+    let balance_allow = metadata
+        .result
+        .iter()
+        .filter(|token| token.balance != "0")
+        .map(|token| {
+            let symbol = chain_metadata
+                .addr_to_sym
+                .get(token.token_address.as_str())
+                .unwrap();
+            let decimals = chain_metadata.sym_to_addr_n_decimals.get(symbol).unwrap().1;
+            TokenBalance {
+                symbol: symbol.to_string(),
+                balance: token.balance.parse::<f64>().unwrap() / 10.0_f64.powi(decimals as i32),
+            }
+        })
+        .collect();
     Ok(balance_allow)
 }
 pub async fn get_chain_metadata(base_url: &str, chain_id: u64) -> Result<ChainData> {
@@ -430,9 +436,9 @@ mod tests {
         assert_eq!(amount_in, U256::from_str_radix("1100000", 10).unwrap());
         Ok(())
     }
-    use std::sync::Arc;
     use dotenv::dotenv;
     use std::env;
+    use std::sync::Arc;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_chain_metadata() -> Result<()> {

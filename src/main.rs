@@ -1,5 +1,3 @@
-
-
 use anyhow::Result;
 use axum::{
     http::{header, Method},
@@ -8,8 +6,8 @@ use axum::{
 };
 use clap::Parser;
 use dotenv::dotenv;
-use std::net::SocketAddr;
 use std::env;
+use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 pub mod agent;
 pub mod cli;
@@ -19,12 +17,10 @@ pub mod executor;
 pub mod feed;
 pub mod handlers;
 pub mod portfolio;
-pub mod utils;
-pub mod types;
-pub mod yields;
 pub mod processors;
-
-
+pub mod types;
+pub mod utils;
+pub mod yields;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -54,7 +50,7 @@ async fn main() -> Result<()> {
     // Build our application with routes
     let app = Router::new()
         .route("/health", get(handlers::health_check))
-        .route("/api/v1/execute", post( handlers::execute))
+        .route("/api/v1/execute", post(handlers::execute))
         .with_state(state)
         .layer(
             // Configure CORS middleware
@@ -80,7 +76,7 @@ async fn main() -> Result<()> {
                     header::HeaderName::from_static("access-control-request-headers"),
                 ])
                 // Allow credentials (cookies, etc.)
-                .allow_credentials(true)
+                .allow_credentials(true),
         );
 
     // Run the server with CLI-configured host and port

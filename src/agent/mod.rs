@@ -1,8 +1,8 @@
 pub mod openai;
 pub mod othentic;
+use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use anyhow::Result;
 
 // Define the Agent trait
 #[async_trait]
@@ -12,10 +12,8 @@ pub trait Agent {
     fn prompt(&self) -> &str;
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 struct Message {
     role: String,
     content: String,
 }
-

@@ -109,7 +109,6 @@ pub async fn fetch_major_crypto_prices(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[tokio::test]
     async fn test_fetch_binance_prices() {
@@ -121,26 +120,35 @@ mod tests {
 
         // Create a real client
         let client = reqwest::Client::new();
-        
+
         // Test with a real symbol
         let symbol = "BTCUSDT".to_string();
-        
+
         // Test the function with the actual Binance API
         let result = fetch_binance_prices(&client, &symbol).await;
-        
+
         // Check the result
         assert!(result.is_ok(), "Failed to fetch prices: {:?}", result.err());
         let price_data = result.unwrap();
-        
+
         // Verify we got reasonable data
         assert!(price_data.timestamp > 0, "Expected non-zero timestamp");
-        assert!(price_data.market_price.is_some(), "Expected market price to be present");
-        assert!(price_data.buy_long_price.is_some(), "Expected buy price to be present");
-        assert!(price_data.sell_short_price.is_some(), "Expected sell price to be present");
-        
+        assert!(
+            price_data.market_price.is_some(),
+            "Expected market price to be present"
+        );
+        assert!(
+            price_data.buy_long_price.is_some(),
+            "Expected buy price to be present"
+        );
+        assert!(
+            price_data.sell_short_price.is_some(),
+            "Expected sell price to be present"
+        );
+
         // Print the results for debugging
         println!("BTC Price Data: {:?}", price_data);
-        
+
         if let Some(market_price) = price_data.market_price {
             assert!(market_price > 0.0, "Expected positive market price");
         }
@@ -156,32 +164,42 @@ mod tests {
 
         // Create a real client
         let client = reqwest::Client::new();
-        
+
         // Test the function with the actual Binance API
         let result = fetch_major_crypto_prices(&client).await;
-        
+
         // Check the result
-        assert!(result.is_ok(), "Failed to fetch major crypto prices: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to fetch major crypto prices: {:?}",
+            result.err()
+        );
         let prices = result.unwrap();
-        
+
         // Verify we got data for both BTC and ETH
         assert!(prices.contains_key("BTC"), "Expected BTC price data");
         assert!(prices.contains_key("ETH"), "Expected ETH price data");
-        
+
         // Print the results for debugging
         println!("Major Crypto Prices: {:?}", prices);
-        
+
         // Check BTC data
         if let Some(btc_data) = prices.get("BTC") {
-            assert!(btc_data.market_price.is_some(), "Expected BTC market price to be present");
+            assert!(
+                btc_data.market_price.is_some(),
+                "Expected BTC market price to be present"
+            );
             if let Some(market_price) = btc_data.market_price {
                 assert!(market_price > 0.0, "Expected positive BTC market price");
             }
         }
-        
+
         // Check ETH data
         if let Some(eth_data) = prices.get("ETH") {
-            assert!(eth_data.market_price.is_some(), "Expected ETH market price to be present");
+            assert!(
+                eth_data.market_price.is_some(),
+                "Expected ETH market price to be present"
+            );
             if let Some(market_price) = eth_data.market_price {
                 assert!(market_price > 0.0, "Expected positive ETH market price");
             }
