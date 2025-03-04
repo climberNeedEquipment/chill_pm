@@ -4,7 +4,7 @@ use crate::portfolio::binance::AccountInfo;
 pub fn format_binance_portfolio(account_info: &AccountInfo) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("Binance Portfolio Summary:\n"));
+    output.push_str("Binance Portfolio Summary:\n");
     output.push_str(&format!(
         "Wallet Balance: {}\n",
         account_info.total_wallet_balance

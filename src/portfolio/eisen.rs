@@ -128,7 +128,7 @@ pub struct Balance {
 impl Balance {
     fn to_f64(&self) -> Result<f64> {
         let amount = f64::from_str(&self.amount).map_err(|_| anyhow!("invalid amount"))?
-            / f64::from(10_f64.powi(self.decimals as i32));
+            / 10_f64.powi(self.decimals as i32);
         if self.positive_sign {
             Ok(amount)
         } else {

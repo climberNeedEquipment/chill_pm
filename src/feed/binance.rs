@@ -223,18 +223,15 @@ impl<'a> Feed<PriceData> for BinancePriceFeed<'a> {
             buy_long_price: market_depth
                 .asks
                 .first()
-                .map(|x| x.0.parse::<f64>().ok())
-                .flatten(),
+                .and_then(|x| x.0.parse::<f64>().ok()),
             sell_short_price: market_depth
                 .bids
                 .first()
-                .map(|x| x.0.parse::<f64>().ok())
-                .flatten(),
+                .and_then(|x| x.0.parse::<f64>().ok()),
             cur_funding_rate: funding_rate
                 .funding_rates
                 .last()
-                .map(|x| x.funding_rate.parse::<f64>().ok())
-                .flatten(),
+                .and_then(|x| x.funding_rate.parse::<f64>().ok()),
         })
     }
 }

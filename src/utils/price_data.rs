@@ -26,6 +26,12 @@ impl Indicators {
     }
 }
 
+impl Default for Indicators {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Indicators {
     pub fn new() -> Self {
         Self {
@@ -164,8 +170,7 @@ pub async fn fetch_binance_ohlcv(
     let mut ohlcv_list = Vec::with_capacity(response.len());
     for kline in response {
         let ohlcv = OHLCV {
-            timestamp: kline
-                .get(0)
+            timestamp: kline.first()
                 .and_then(|v| v.as_u64())
                 .ok_or_else(|| anyhow::anyhow!("Failed to parse timestamp"))?
                 as u128,
@@ -221,9 +226,7 @@ impl BinanceData {
         for (interval, ohlcv_data) in Interval::iter().zip(ohlcv_data_array) {
             let mut binance_data = TimeframeData::with_initial_data(
                 window_size,
-                ohlcv_data.expect(
-                    format!("Failed to get Binance data for {}", interval.to_string()).as_str(),
-                ),
+                ohlcv_data.unwrap_or_else(|_| panic!("Failed to get Binance data for {}", interval)),
             );
             binance_data.update_indicators();
             data.insert(interval, binance_data);

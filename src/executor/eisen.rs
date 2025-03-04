@@ -375,7 +375,7 @@ pub async fn quote_and_send_tx(
     .unwrap();
 
     let quote = get_quote(
-        &base_url,
+        base_url,
         chain_id,
         src_token_addr,
         dst_token_addr,
@@ -385,7 +385,7 @@ pub async fn quote_and_send_tx(
     .await?;
 
     let tx_data = get_tx_data(
-        &base_url,
+        base_url,
         chain_id,
         quote.result.dex_agg.unwrap(),
         None,
@@ -419,7 +419,7 @@ mod tests {
         let amount = 1.1;
         let src_token_decimals = 6;
         let amount_in = U256::from_str_radix(
-            &((amount * 10.0_f64.powi(src_token_decimals as i32))
+            &((amount * 10.0_f64.powi(src_token_decimals))
                 .floor()
                 .to_string()),
             10,

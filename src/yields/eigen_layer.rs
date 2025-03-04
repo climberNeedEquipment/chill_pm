@@ -89,7 +89,7 @@ async fn fetch_eigen_apr() -> Result<EigenYield, Box<dyn Error>> {
     // Query ID for the APR calculation
     let query_id = "4127474"; // Updated to your actual query ID
     let response = client
-        .get(&format!(
+        .get(format!(
             "https://api.dune.com/api/v1/query/{}/results?limit=1000",
             query_id
         ))

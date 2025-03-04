@@ -292,7 +292,7 @@ pub async fn place_binance_order(
         position_side: Some(PositionSide::Both),
         order_type,
         reduce_only: None,
-        quantity: quantity,
+        quantity,
         price,
         new_client_order_id: None,
         stop_price,
@@ -359,7 +359,7 @@ mod tests {
 
         // market order
         let order = place_binance_order(
-            &binance_base_url,
+            binance_base_url,
             &binance_key,
             "ETH",
             OrderSide::Buy,
