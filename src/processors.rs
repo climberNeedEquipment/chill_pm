@@ -20,7 +20,7 @@ pub async fn process_eisen_swaps(
         return Ok(());
     }
 
-    let swaps = strategy.exchanges.eisen.swaps.as_ref().unwrap(); 
+    let swaps = strategy.exchanges.eisen.swaps.as_ref().unwrap();
 
     for (i, swap) in swaps.iter().enumerate() {
         println!(

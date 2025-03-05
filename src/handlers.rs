@@ -7,7 +7,6 @@ use crate::executor::eisen::ChainPortfolio;
 use crate::feed::binance::BinancePriceFeed;
 use crate::portfolio::binance::fetch_binance_portfolio;
 use crate::portfolio::binance::AccountInfo;
-use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::processors::{process_binance_place_order, process_eisen_swaps};
 use crate::types;
 use crate::types::MarketPrices;

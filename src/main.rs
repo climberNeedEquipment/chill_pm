@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
                     header::HeaderName::from_static("x-requested-with"),
                     header::HeaderName::from_static("access-control-request-method"),
                     header::HeaderName::from_static("access-control-request-headers"),
-                ])
+                ]),
         );
 
     // Run the server with CLI-configured host and port
