@@ -1,7 +1,5 @@
-use crate::executor::binance::PlaceOrder;
 use crate::agent::Strategy;
-use crate::agent::EisenSwap;
-
+use crate::executor::binance::PlaceOrder;
 
 pub fn extract_binance_place_order(strategy: &Strategy) -> Vec<PlaceOrder> {
     let mut orders = Vec::new();

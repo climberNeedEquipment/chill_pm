@@ -113,7 +113,7 @@ mod tests {
             } else {
                 "https://fapi.binance.com"
             };
-        let portfolio = get_binance_portfolio(&binance_base_url, &binance_key).await?;
+        let portfolio = get_binance_portfolio(binance_base_url, &binance_key).await?;
 
         println!("{:?}", portfolio);
         Ok(())

@@ -1,5 +1,6 @@
 use crate::agent::Strategy;
 use crate::executor;
+use crate::executor::eisen::ChainData;
 use crate::utils;
 use crate::utils::parser::extract_binance_place_order;
 use alloy::providers::Provider;
@@ -9,11 +10,10 @@ pub async fn process_eisen_swaps(
     strategy: &Strategy,
     provider: &Box<dyn Provider>,
     base_url: &str,
-    chain_data: &executor::eisen::ChainData,
+    chain_data: &ChainData,
     wallet_address: &String,
 ) -> Result<(), Box<dyn Error>> {
-    let wallet_addr = wallet_address
-        .parse::<alloy::primitives::Address>()?;
+    let wallet_addr = wallet_address.parse::<alloy::primitives::Address>()?;
 
     // Print the swaps that will be executed
     println!("Swaps to be executed:");

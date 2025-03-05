@@ -2,11 +2,10 @@ use crate::agent::othentic::OthenticAgent;
 use crate::agent::Strategy;
 use crate::error::AppError;
 use crate::executor;
-use crate::executor::eisen::get_chain_metadata;
 use crate::executor::eisen::ChainPortfolio;
 use crate::feed::binance::BinancePriceFeed;
+use crate::portfolio::binance::get_binance_portfolio;
 use crate::portfolio::binance::AccountInfo;
-use crate::portfolio::binance::{get_binance_portfolio, AccountSummary};
 use crate::processors::{process_binance_place_order, process_eisen_swaps};
 use crate::types;
 use crate::utils::format;
@@ -24,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::error::Error as StdError;
 use std::io::{self, Error as IoError};
-use std::sync::Arc;
 
 #[derive(Debug, Serialize)]
 pub struct HealthCheckResponse {
@@ -248,7 +246,7 @@ pub async fn execute_strategy(
         message: "Strategy executed".to_string(),
         binance_portfolio: binance_account_info,
         onchain_portfolio: base_chain_portfolio,
-        strategy
+        strategy,
     };
 
     Ok((StatusCode::OK, Json(response)))

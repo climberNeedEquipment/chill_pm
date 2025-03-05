@@ -58,10 +58,7 @@ async fn main() -> Result<()> {
                 // Allow requests from any origin
                 .allow_origin(Any)
                 // Allow common HTTP methods
-                .allow_methods([
-                    Method::GET,
-                    Method::POST,                  
-                ])
+                .allow_methods([Method::GET, Method::POST])
                 // Specify explicit headers instead of Any when credentials are true
                 .allow_headers([
                     header::AUTHORIZATION,
