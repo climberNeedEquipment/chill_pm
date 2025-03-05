@@ -10,8 +10,11 @@ pub async fn process_eisen_swaps(
     provider: &Box<dyn Provider>,
     base_url: &str,
     chain_data: &executor::eisen::ChainData,
-    wallet_addr: &alloy::primitives::Address,
+    wallet_address: &String,
 ) -> Result<(), Box<dyn Error>> {
+    let wallet_addr = wallet_address
+        .parse::<alloy::primitives::Address>()?;
+
     // Print the swaps that will be executed
     println!("Swaps to be executed:");
     for (i, swap) in strategy.exchanges.eisen.swaps.iter().enumerate() {
@@ -38,7 +41,7 @@ pub async fn process_eisen_swaps(
             &swap.token_in,
             &swap.token_out,
             swap.amount,
-            wallet_addr,
+            &wallet_addr,
             100, // Default slippage of 1% (100 basis points)
         )
         .await?;

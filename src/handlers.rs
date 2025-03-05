@@ -189,7 +189,6 @@ pub async fn execute_strategy(
     };
     let provider =
         get_provider(&base_rpc_url).map_err(|e| AppError::internal_error(e.to_string()))?;
-
     println!("Fetching crypto prices from Binance...");
     let price_data =
         format_json(&fetch_prices(&state.binance_base_url, &state.reqwest_cli).await?)?;
@@ -232,17 +231,13 @@ pub async fn execute_strategy(
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
     // Convert wallet address string to alloy Address type
-    let wallet_addr = params
-        .wallet_address
-        .parse::<alloy::primitives::Address>()
-        .map_err(|e| AppError::internal_error(format!("Invalid wallet address: {}", e)))?;
 
     process_eisen_swaps(
         &strategy,
         &provider,
         &state.eisen_base_url,
         &chain_data,
-        &wallet_addr,
+        &params.wallet_address,
     )
     .await
     .map_err(|e| AppError::internal_error(e.to_string()))?;
