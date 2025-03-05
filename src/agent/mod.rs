@@ -13,7 +13,7 @@ pub trait Agent {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Message {
+pub struct Message {
     role: String,
     content: String,
 }
@@ -44,6 +44,7 @@ pub struct EisenExchange {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EisenSwap {
     pub token_in: String,
     pub token_out: String,

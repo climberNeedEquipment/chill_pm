@@ -89,7 +89,10 @@ pub async fn fetch_binance_portfolio(base_url: &str, key: &BinanceKey) -> Result
         ));
     }
 
-    let account_info: AccountInfo = response.json().await?;
+    let account_info: AccountInfo = response
+        .json()
+        .await
+        .map_err(|e| anyhow::anyhow!("Error parsing account info: {}", e))?;
     Ok(account_info)
 }
 

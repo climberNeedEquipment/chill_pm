@@ -2,19 +2,22 @@ use crate::agent::othentic::OthenticAgent;
 use crate::agent::Strategy;
 use crate::error::AppError;
 use crate::executor;
+use crate::executor::eisen::fetch_chain_portfolio;
 use crate::executor::eisen::ChainPortfolio;
 use crate::feed::binance::BinancePriceFeed;
 use crate::portfolio::binance::fetch_binance_portfolio;
 use crate::portfolio::binance::AccountInfo;
+use crate::portfolio::eisen::get_onchain_portfolio;
 use crate::processors::{process_binance_place_order, process_eisen_swaps};
 use crate::types;
+use crate::types::MarketPrices;
 use crate::utils::format;
 use crate::utils::sign::BinanceKey;
 use alloy::network::EthereumWallet;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
 use axum::{
-    extract::{Json, State},
+    extract::{Json, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -54,7 +57,7 @@ fn format_json(value: &serde_json::Value) -> Result<String, AppError> {
 async fn fetch_prices(
     binance_base_url: &String,
     reqwest_cli: &reqwest::Client,
-) -> Result<serde_json::Value, AppError> {
+) -> Result<types::MarketPrices, AppError> {
     let btcsymbol = "BTCUSDT".to_string();
     let btc_price_feed = BinancePriceFeed::new(binance_base_url, reqwest_cli, &btcsymbol);
 
@@ -70,31 +73,10 @@ async fn fetch_prices(
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
-    let mut price_data = serde_json::Map::new();
-
-    price_data.insert(
-        "BTC".to_string(),
-        serde_json::Value::String(
-            btc_price
-                .mark_price
-                .parse::<f64>()
-                .unwrap_or(0.0)
-                .to_string(),
-        ),
-    );
-
-    price_data.insert(
-        "ETH".to_string(),
-        serde_json::Value::String(
-            eth_price
-                .mark_price
-                .parse::<f64>()
-                .unwrap_or(0.0)
-                .to_string(),
-        ),
-    );
-
-    Ok(serde_json::Value::Object(price_data))
+    Ok(types::MarketPrices {
+        eth: eth_price.mark_price.parse::<f64>().unwrap_or(0.0),
+        btc: btc_price.mark_price.parse::<f64>().unwrap_or(0.0),
+    })
 }
 
 fn get_provider(rpc_url: &String) -> Result<Box<dyn Provider>, Box<dyn StdError>> {
@@ -144,7 +126,7 @@ async fn fetch_chain_data(
             )));
         }
     };
-    
+
     let chain_data = match executor::eisen::get_chain_metadata(eisen_base_url, chain_id).await {
         Ok(data) => data,
         Err(err) => {
@@ -160,6 +142,7 @@ async fn fetch_chain_data(
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExecuteStrategyResponse {
     pub status: String,
     pub message: String,
@@ -188,10 +171,10 @@ pub async fn execute_strategy(
     let provider =
         get_provider(&base_rpc_url).map_err(|e| AppError::internal_error(e.to_string()))?;
     println!("Fetching crypto prices from Binance...");
-    let price_data = format!(
-        "Market price:\n{}",
-        format_json(&fetch_prices(&state.binance_base_url, &state.reqwest_cli).await?)?
-    );
+    let market_prices: MarketPrices =
+        fetch_prices(&state.binance_base_url, &state.reqwest_cli).await?;
+    let price_data = format!("Market price:\n{}", market_prices);
+
     println!("Price data: {}", price_data);
     println!("Fetching Binance portfolio data...");
 
@@ -255,6 +238,56 @@ pub async fn execute_strategy(
         binance_portfolio,
         onchain_portfolio,
         strategy,
+    };
+
+    Ok((StatusCode::OK, Json(response)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetPortfolioParams {
+    pub wallet_address: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetPortfolioResponse {
+    pub status: String,
+    pub message: String,
+    pub binance_portfolio: AccountInfo,
+    pub onchain_portfolio: ChainPortfolio,
+    pub prices: types::MarketPrices,
+}
+
+pub async fn get_portfolio(
+    State(state): State<types::AppState>,
+    Query(params): Query<GetPortfolioParams>,
+) -> Result<impl IntoResponse, AppError> {
+    println!(
+        "Processing portfolio request with wallet address: {}",
+        params.wallet_address
+    );
+
+    let prices: MarketPrices = fetch_prices(&state.binance_base_url, &state.reqwest_cli).await?;
+
+    let binance_key: BinanceKey = BinanceKey {
+        api_key: state.binance_api_key.clone(),
+        secret_key: state.binance_api_secret.clone(),
+    };
+    let onchain_portfolio =
+        fetch_chain_portfolio(&state.eisen_base_url, 8453, &params.wallet_address)
+            .await
+            .map_err(|e| AppError::internal_error(e.to_string()))?;
+
+    let binance_portfolio = fetch_binance_portfolio(&state.binance_base_url, &binance_key)
+        .await
+        .map_err(|e| AppError::internal_error(e.to_string()))?;
+
+    let response = GetPortfolioResponse {
+        status: "success".to_string(),
+        message: "Portfolio fetched".to_string(),
+        binance_portfolio,
+        onchain_portfolio,
+        prices,
     };
 
     Ok((StatusCode::OK, Json(response)))
