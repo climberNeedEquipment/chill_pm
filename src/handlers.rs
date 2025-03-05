@@ -3,6 +3,7 @@ use crate::agent::Strategy;
 use crate::error::AppError;
 use crate::executor;
 use crate::executor::eisen::get_chain_metadata;
+use crate::executor::eisen::ChainPortfolio;
 use crate::feed::binance::BinancePriceFeed;
 use crate::portfolio::binance::AccountInfo;
 use crate::portfolio::binance::{get_binance_portfolio, AccountSummary};
@@ -10,7 +11,6 @@ use crate::processors::{process_binance_place_order, process_eisen_swaps};
 use crate::types;
 use crate::utils::format;
 use crate::utils::sign::BinanceKey;
-use crate::executor::eisen::ChainPortfolio;
 use alloy::network::EthereumWallet;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
@@ -43,8 +43,9 @@ pub async fn health_check() -> Result<impl IntoResponse, AppError> {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct GenerateStrategyParams {
+pub struct ExecuteStrategyParams {
     pub wallet_address: String,
+    pub model: Option<String>,
 }
 
 fn format_json(value: &serde_json::Value) -> Result<String, AppError> {
@@ -98,11 +99,7 @@ async fn fetch_prices(
     Ok(serde_json::Value::Object(price_data))
 }
 
-async fn fetch_chain_data(
-    eisen_base_url: &String,
-    rpc_url: &String,
-) -> Result<executor::eisen::ChainData, Box<dyn StdError>> {
-    // Get private key from environment
+fn get_provider(rpc_url: &String) -> Result<Box<dyn Provider>, Box<dyn StdError>> {
     let signer: PrivateKeySigner = match env::var("PRIVATE_KEY_DEPLOYER") {
         Ok(key) => {
             key.chars()
@@ -122,13 +119,21 @@ async fn fetch_chain_data(
             )));
         }
     };
-
     let wallet = EthereumWallet::from(signer);
 
     let provider = ProviderBuilder::new()
         .wallet(wallet.clone())
         .on_http(reqwest::Url::parse(rpc_url).unwrap());
-    let provider = Arc::new(provider);
+
+    Ok(Box::new(provider))
+}
+
+async fn fetch_chain_data(
+    eisen_base_url: &String,
+    rpc_url: &String,
+) -> Result<executor::eisen::ChainData, Box<dyn StdError>> {
+    // Get provider
+    let provider = get_provider(rpc_url)?;
 
     // Get chain metadata
     let chain_id = match provider.get_chain_id().await {
@@ -142,7 +147,7 @@ async fn fetch_chain_data(
         }
     };
 
-    let chain_data = match get_chain_metadata(eisen_base_url, chain_id).await {
+    let chain_data = match executor::eisen::get_chain_metadata(eisen_base_url, chain_id).await {
         Ok(data) => data,
         Err(err) => {
             println!("Error getting chain metadata: {:?}", err);
@@ -157,7 +162,7 @@ async fn fetch_chain_data(
 }
 
 #[derive(Debug, Serialize)]
-pub struct GenerateStrategyResponse {
+pub struct ExecuteStrategyResponse {
     pub status: String,
     pub message: String,
     pub binance_portfolio: AccountInfo,
@@ -166,9 +171,9 @@ pub struct GenerateStrategyResponse {
 }
 
 // Handler for POST /api/v1/execute
-pub async fn generate_strategy(
+pub async fn execute_strategy(
     State(state): State<types::AppState>,
-    Json(params): Json<GenerateStrategyParams>,
+    Json(params): Json<ExecuteStrategyParams>,
 ) -> Result<impl IntoResponse, AppError> {
     println!(
         "Processing request with wallet address: {}",
@@ -176,12 +181,14 @@ pub async fn generate_strategy(
     );
     println!("Using Binance base URL: {}", state.binance_base_url);
     println!("Using Eisen base URL: {}", state.eisen_base_url);
-
+    let base_rpc_url: String = "https://mainnet.base.org".to_string();
     // Create a Binance key from the API credentials
     let binance_key: BinanceKey = BinanceKey {
         api_key: state.binance_api_key.clone(),
         secret_key: state.binance_api_secret.clone(),
     };
+    let provider =
+        get_provider(&base_rpc_url).map_err(|e| AppError::internal_error(e.to_string()))?;
 
     println!("Fetching crypto prices from Binance...");
     let price_data =
@@ -195,7 +202,6 @@ pub async fn generate_strategy(
 
     println!("Wallet address: {}", params.wallet_address);
 
-    let base_rpc_url = "https://mainnet.base.org".to_string();
     let chain_data = fetch_chain_data(&state.eisen_base_url, &base_rpc_url)
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
@@ -210,10 +216,13 @@ pub async fn generate_strategy(
         format::format_binance_portfolio(&binance_account_info),
         base_chain_portfolio
     );
-    let model = "o1".to_string();
     let othentic_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
     let strategy = othentic_agent
-        .get_strategy(&model, &price_data, &binance_portfolio)
+        .get_strategy(
+            &params.model.unwrap_or("o1".to_string()),
+            &price_data,
+            &binance_portfolio,
+        )
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
@@ -222,11 +231,6 @@ pub async fn generate_strategy(
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
-    let rpc_url = base_rpc_url
-        .parse()
-        .map_err(|e| AppError::internal_error(format!("Invalid RPC URL: {}", e)))?;
-    // Create a provider for the Base network
-    let provider = ProviderBuilder::new().on_http(rpc_url);
     // Convert wallet address string to alloy Address type
     let wallet_addr = params
         .wallet_address
@@ -244,12 +248,12 @@ pub async fn generate_strategy(
     .map_err(|e| AppError::internal_error(e.to_string()))?;
 
     // Create a response object that we'll populate
-    let response = GenerateStrategyResponse {
+    let response = ExecuteStrategyResponse {
         status: "success".to_string(),
         message: "Strategy executed".to_string(),
         binance_portfolio: binance_account_info,
         onchain_portfolio: base_chain_portfolio,
-        strategy: strategy,
+        strategy
     };
 
     Ok((StatusCode::OK, Json(response)))

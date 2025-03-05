@@ -7,7 +7,7 @@ use std::error::Error;
 
 pub async fn process_eisen_swaps(
     strategy: &Strategy,
-    provider: &dyn Provider,
+    provider: &Box<dyn Provider>,
     base_url: &str,
     chain_data: &executor::eisen::ChainData,
     wallet_addr: &alloy::primitives::Address,
@@ -26,12 +26,13 @@ pub async fn process_eisen_swaps(
 
     if strategy.exchanges.eisen.swaps.is_empty() {
         println!("No swaps to execute");
+        return Ok(());
     }
 
     for swap in &strategy.exchanges.eisen.swaps {
         // Call the quote_and_send_tx function from executor/eisen
         let result = executor::eisen::quote_and_send_tx(
-            provider,
+            provider.as_ref(),
             base_url,
             chain_data,
             &swap.token_in,
@@ -41,6 +42,7 @@ pub async fn process_eisen_swaps(
             100, // Default slippage of 1% (100 basis points)
         )
         .await?;
+
         // Handle the result as needed
         println!("Eisen swap executed: {:?}", result);
     }
