@@ -184,7 +184,7 @@ pub struct TokenBalance {
 pub async fn get_balance_allow(
     base_url: &str,
     chain_id: u64,
-    wallet_addr: String,
+    wallet_addr: &String,
 ) -> Result<Vec<TokenBalance>> {
     let url = format!(
         "{}/chains/{}/balances?walletAddress={}",

@@ -60,10 +60,7 @@ async fn main() -> Result<()> {
                 // Allow common HTTP methods
                 .allow_methods([
                     Method::GET,
-                    Method::POST,
-                    Method::PUT,
-                    Method::DELETE,
-                    Method::OPTIONS,
+                    Method::POST,                  
                 ])
                 // Specify explicit headers instead of Any when credentials are true
                 .allow_headers([

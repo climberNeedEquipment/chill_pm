@@ -14,6 +14,21 @@ pub enum AppError {
     Unauthorized(String),
 }
 
+impl AppError {
+    pub fn bad_request(message: String) -> Self {
+        AppError::BadRequest(message)
+    }
+    pub fn internal_error(message: String) -> Self {
+        AppError::InternalError(message)
+    }
+    pub fn not_found(message: String) -> Self {
+        AppError::NotFound(message)
+    }
+    pub fn unauthorized(message: String) -> Self {
+        AppError::Unauthorized(message)
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct ErrorResponse {
     status: String,

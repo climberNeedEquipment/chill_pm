@@ -17,3 +17,40 @@ struct Message {
     role: String,
     content: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Exchanges {
+    pub binance: BinanceExchange,
+    pub eisen: EisenExchange,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BinanceExchange {
+    pub orders: Vec<BinanceOrder>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BinanceOrder {
+    pub position: String,
+    pub token: String,
+    pub amount: f64,
+    pub price: f64,
+    pub side: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EisenExchange {
+    pub swaps: Vec<EisenSwap>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EisenSwap {
+    pub token_in: String,
+    pub token_out: String,
+    pub amount: f64,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Strategy {
+    pub exchanges: Exchanges,
+}
