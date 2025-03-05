@@ -54,7 +54,7 @@ pub struct AccountSummary {
     pub total_margin_balance: String,
 }
 
-pub async fn get_binance_portfolio(base_url: &str, key: &BinanceKey) -> Result<AccountInfo> {
+pub async fn fetch_binance_portfolio(base_url: &str, key: &BinanceKey) -> Result<AccountInfo> {
     // Create an empty parameter map to sign
     let params: HashMap<String, String> = HashMap::new();
 
@@ -113,7 +113,7 @@ mod tests {
             } else {
                 "https://fapi.binance.com"
             };
-        let portfolio = get_binance_portfolio(binance_base_url, &binance_key).await?;
+        let portfolio = fetch_binance_portfolio(binance_base_url, &binance_key).await?;
 
         println!("{:?}", portfolio);
         Ok(())

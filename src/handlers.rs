@@ -4,7 +4,7 @@ use crate::error::AppError;
 use crate::executor;
 use crate::executor::eisen::ChainPortfolio;
 use crate::feed::binance::BinancePriceFeed;
-use crate::portfolio::binance::get_binance_portfolio;
+use crate::portfolio::binance::fetch_binance_portfolio;
 use crate::portfolio::binance::AccountInfo;
 use crate::processors::{process_binance_place_order, process_eisen_swaps};
 use crate::types;
@@ -193,7 +193,7 @@ pub async fn execute_strategy(
     println!("Price data: {}", price_data);
     println!("Fetching Binance portfolio data...");
 
-    let binance_account_info = get_binance_portfolio(&state.binance_base_url, &binance_key)
+    let binance_portfolio = fetch_binance_portfolio(&state.binance_base_url, &binance_key)
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
@@ -202,23 +202,23 @@ pub async fn execute_strategy(
     let chain_data = fetch_chain_data(&state.eisen_base_url, &base_rpc_url)
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
-    let base_chain_portfolio =
+    let onchain_portfolio =
         executor::eisen::fetch_chain_portfolio(&state.eisen_base_url, 8543, &params.wallet_address)
             .await
             .map_err(|e| AppError::internal_error(e.to_string()))?;
-    println!("Base chain portfolio: {:?}", base_chain_portfolio);
+    println!("Base chain portfolio: {:?}", onchain_portfolio);
 
-    let binance_portfolio = format!(
+    let binance_portfolio_str = format!(
         "{}\n\n{:#?}",
-        format::format_binance_portfolio(&binance_account_info),
-        base_chain_portfolio
+        format::format_binance_portfolio(&binance_portfolio),
+        onchain_portfolio
     );
     let othentic_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
     let strategy = othentic_agent
         .get_strategy(
             &params.model.unwrap_or("o1".to_string()),
             &price_data,
-            &binance_portfolio,
+            &binance_portfolio_str,
         )
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
@@ -244,8 +244,8 @@ pub async fn execute_strategy(
     let response = ExecuteStrategyResponse {
         status: "success".to_string(),
         message: "Strategy executed".to_string(),
-        binance_portfolio: binance_account_info,
-        onchain_portfolio: base_chain_portfolio,
+        binance_portfolio,
+        onchain_portfolio,
         strategy,
     };
 
