@@ -181,11 +181,16 @@ pub struct TokenBalance {
     balance: f64,
 }
 
-pub async fn get_balance_allow(
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChainPortfolio {
+    pub balances: Vec<TokenBalance>,
+}
+
+pub async fn fetch_chain_portfolio(
     base_url: &str,
     chain_id: u64,
     wallet_addr: &String,
-) -> Result<Vec<TokenBalance>> {
+) -> Result<ChainPortfolio> {
     let url = format!(
         "{}/chains/{}/balances?walletAddress={}",
         base_url, chain_id, wallet_addr
@@ -218,8 +223,11 @@ pub async fn get_balance_allow(
             }
         })
         .collect();
-    Ok(balance_allow)
+    Ok(ChainPortfolio {
+        balances: balance_allow,
+    })
 }
+
 pub async fn get_chain_metadata(base_url: &str, chain_id: u64) -> Result<ChainData> {
     let url = format!("{}/chains/{}/metadata", base_url, chain_id);
     let client = Client::new();

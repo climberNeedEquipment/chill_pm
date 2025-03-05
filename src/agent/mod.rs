@@ -33,7 +33,7 @@ pub struct BinanceExchange {
 pub struct BinanceOrder {
     pub position: String,
     pub token: String,
-    pub amount: f64,
+    pub amount: String,
     pub price: f64,
     pub side: String,
 }
@@ -50,7 +50,7 @@ pub struct EisenSwap {
     pub amount: f64,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct Strategy {
     pub exchanges: Exchanges,
 }

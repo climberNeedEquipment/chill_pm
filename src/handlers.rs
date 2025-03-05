@@ -4,11 +4,13 @@ use crate::error::AppError;
 use crate::executor;
 use crate::executor::eisen::get_chain_metadata;
 use crate::feed::binance::BinancePriceFeed;
+use crate::portfolio::binance::AccountInfo;
 use crate::portfolio::binance::{get_binance_portfolio, AccountSummary};
 use crate::processors::{process_binance_place_order, process_eisen_swaps};
 use crate::types;
 use crate::utils::format;
 use crate::utils::sign::BinanceKey;
+use crate::executor::eisen::ChainPortfolio;
 use alloy::network::EthereumWallet;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
@@ -17,8 +19,6 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use futures::TryFutureExt;
-use itertools::Itertools;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -160,12 +160,9 @@ async fn fetch_chain_data(
 pub struct GenerateStrategyResponse {
     pub status: String,
     pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub binance_portfolio: Option<AccountSummary>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub onchain_portfolio: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub strategy: Option<serde_json::Value>,
+    pub binance_portfolio: AccountInfo,
+    pub onchain_portfolio: ChainPortfolio,
+    pub strategy: Strategy,
 }
 
 // Handler for POST /api/v1/execute
@@ -180,22 +177,13 @@ pub async fn generate_strategy(
     println!("Using Binance base URL: {}", state.binance_base_url);
     println!("Using Eisen base URL: {}", state.eisen_base_url);
 
-    // Create a response object that we'll populate
-    let mut response = GenerateStrategyResponse {
-        status: "success".to_string(),
-        message: "Portfolio data retrieved".to_string(),
-        binance_portfolio: None,
-        onchain_portfolio: None,
-        strategy: None,
-    };
-
     // Create a Binance key from the API credentials
     let binance_key: BinanceKey = BinanceKey {
         api_key: state.binance_api_key.clone(),
         secret_key: state.binance_api_secret.clone(),
     };
 
-    println!("Fetching major crypto prices from Binance...");
+    println!("Fetching crypto prices from Binance...");
     let price_data =
         format_json(&fetch_prices(&state.binance_base_url, &state.reqwest_cli).await?)?;
     println!("Price data: {}", price_data);
@@ -212,157 +200,57 @@ pub async fn generate_strategy(
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
     let base_chain_portfolio =
-        executor::eisen::get_balance_allow(&state.eisen_base_url, 8543, &params.wallet_address)
+        executor::eisen::fetch_chain_portfolio(&state.eisen_base_url, 8543, &params.wallet_address)
             .await
             .map_err(|e| AppError::internal_error(e.to_string()))?;
     println!("Base chain portfolio: {:?}", base_chain_portfolio);
 
-    let portfolio_summary = format!(
-        "{}\n\n{:?}",
+    let binance_portfolio = format!(
+        "{}\n\n{:#?}",
         format::format_binance_portfolio(&binance_account_info),
         base_chain_portfolio
     );
     let model = "o1".to_string();
-    let yield_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
-    let strategy = yield_agent
-        .get_strategy(&model, &price_data, &portfolio_summary)
+    let othentic_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
+    let strategy = othentic_agent
+        .get_strategy(&model, &price_data, &binance_portfolio)
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
     println!("Strategy: {:?}", strategy);
-    process_binance_place_order(
-      &strategy,
-      &state.binance_base_url,
-      &binance_key,
-  )
-  .await
-  .map_err(|e| AppError::internal_error(e.to_string()))?;
+    process_binance_place_order(&strategy, &state.binance_base_url, &binance_key)
+        .await
+        .map_err(|e| AppError::internal_error(e.to_string()))?;
 
-  
+    let rpc_url = base_rpc_url
+        .parse()
+        .map_err(|e| AppError::internal_error(format!("Invalid RPC URL: {}", e)))?;
+    // Create a provider for the Base network
+    let provider = ProviderBuilder::new().on_http(rpc_url);
+    // Convert wallet address string to alloy Address type
+    let wallet_addr = params
+        .wallet_address
+        .parse::<alloy::primitives::Address>()
+        .map_err(|e| AppError::internal_error(format!("Invalid wallet address: {}", e)))?;
 
-    
+    process_eisen_swaps(
+        &strategy,
+        &provider,
+        &state.eisen_base_url,
+        &chain_data,
+        &wallet_addr,
+    )
+    .await
+    .map_err(|e| AppError::internal_error(e.to_string()))?;
 
-    // If we have at least one portfolio, consider it a success
-    // Otherwise return a 404 Not Found status
-    if binance_account_info.is_some() || base_chain_portfolio.is_some() {
-        response.status = "success".to_string();
-        println!("Generating investment strategy...");
+    // Create a response object that we'll populate
+    let response = GenerateStrategyResponse {
+        status: "success".to_string(),
+        message: "Strategy executed".to_string(),
+        binance_portfolio: binance_account_info,
+        onchain_portfolio: base_chain_portfolio,
+        strategy: strategy,
+    };
 
-        // Create the specialized yield farming agent
-        let yield_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
-
-        // Use the token value we already extracted above
-        let portfolio_summary = format!("{:?}", base_chain_portfolio.unwrap());
-        let binance_portfolio_summary =
-            format::format_binance_portfolio(&binance_account_info.unwrap());
-
-        let all_portfolio_summary =
-            format!("{}\n\n{}", portfolio_summary, binance_portfolio_summary).to_string();
-
-        let model = "o1".to_string();
-        // Try to generate a farming strategy
-        match yield_agent
-            .get_strategy(&model, &price_data, &all_portfolio_summary)
-            .await
-        {
-            Ok(strategy_text) => {
-                println!("Successfully generated strategy");
-                // Try to parse the strategy as JSON
-                match serde_json::from_str::<serde_json::Value>(&strategy_text) {
-                    Ok(strategy_json) => {
-                        if let Some(strategy_str) = strategy_json
-                            .get("data")
-                            .and_then(|d| d.get("strategy"))
-                            .and_then(|s| s.as_str())
-                        {
-                            // Parse the inner strategy string
-                            match serde_json::from_str::<serde_json::Value>(strategy_str) {
-                                Ok(inner_strategy_json) => {
-                                    response.strategy = Some(strategy_json.clone());
-
-                                    // Pretty print the strategy JSON for better readability
-                                    let pretty_json =
-                                        serde_json::to_string_pretty(&inner_strategy_json)
-                                            .unwrap_or_else(|_| strategy_text.clone());
-                                    println!("Strategy (pretty printed):\n{}", pretty_json);
-
-                                    // Execute the strategy
-                                    println!("Executing strategy...");
-                                    // Process Binance orders
-                                    match serde_json::from_value::<crate::agent::Strategy>(inner_strategy_json.clone()) {
-                                        Ok(strategy) => {
-                                            match process_binance_place_order(
-                                                &strategy,
-                                                &state.binance_base_url,
-                                                &binance_key,
-                                            )
-                                            .await
-                                            {
-                                                Ok(_) => {
-                                                    println!("Successfully executed Binance orders");
-                                                }
-                                                Err(err) => {
-                                                    println!("Error executing Binance orders: {:?}", err);
-                                                    // Don't fail the whole request if Binance orders fail
-                                                }
-                                            }
-                                        },
-                                        Err(err) => {
-                                            println!("Error parsing strategy: {:?}", err);
-                                        }
-                                    }
-
-                                    // Process Eisen swaps
-                                    match process_eisen_swaps(
-                                        &inner_strategy_json,
-                                        &provider,
-                                        base_url,
-                                        &chain_data,
-                                        &wallet_addr,
-                                    )
-                                    .await
-                                    {
-                                        Ok(_) => {
-                                            println!("Successfully executed Eisen swaps");
-                                        }
-                                        Err(err) => {
-                                            println!("Error executing Eisen swaps: {:?}", err);
-                                            // Don't fail the whole request if Eisen swaps fail
-                                        }
-                                    }
-                                }
-                                Err(err) => {
-                                    println!(
-                                        "Warning: Strategy response is not valid JSON: {}",
-                                        err
-                                    );
-                                    // Still include the text response as a JSON string
-                                    response.strategy =
-                                        Some(serde_json::Value::String(strategy_text));
-                                }
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        println!("Warning: Strategy response is not valid JSON: {}", err);
-                        // Still include the text response as a JSON string
-                        response.strategy = Some(serde_json::Value::String(strategy_text));
-                    }
-                }
-            }
-            Err(err) => {
-                println!("Error generating strategy: {:?}", err);
-                // Don't fail the whole request if strategy generation fails
-                // Just log the error and continue
-            }
-        }
-
-        println!("Returning response with status: {}", response.status);
-        Ok((StatusCode::OK, Json(response)))
-    } else {
-        response.status = "error".to_string();
-        response.message = "Failed to retrieve any portfolio data".to_string();
-        println!("Returning 404 error: {}", response.message);
-        Ok((StatusCode::NOT_FOUND, Json(response)))
-    }
+    Ok((StatusCode::OK, Json(response)))
 }
