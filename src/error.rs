@@ -11,21 +11,20 @@ pub enum AppError {
     BadRequest(String),
     InternalError(String),
     NotFound(String),
-    Unauthorized(String),
 }
 
 impl AppError {
     pub fn bad_request(message: String) -> Self {
+        println!("Bad request: {}", message);
         AppError::BadRequest(message)
     }
     pub fn internal_error(message: String) -> Self {
+        println!("Internal error: {}", message);
         AppError::InternalError(message)
     }
     pub fn not_found(message: String) -> Self {
+        println!("Not found: {}", message);
         AppError::NotFound(message)
-    }
-    pub fn unauthorized(message: String) -> Self {
-        AppError::Unauthorized(message)
     }
 }
 
@@ -41,7 +40,6 @@ impl fmt::Display for AppError {
             AppError::BadRequest(msg) => msg,
             AppError::InternalError(msg) => msg,
             AppError::NotFound(msg) => msg,
-            AppError::Unauthorized(msg) => msg,
         };
         write!(f, "{}", message)
     }
@@ -53,7 +51,6 @@ impl IntoResponse for AppError {
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
         };
 
         let body = Json(ErrorResponse {

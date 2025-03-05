@@ -5,11 +5,20 @@ pub fn extract_binance_place_order(strategy: &Strategy) -> Vec<PlaceOrder> {
     let mut orders = Vec::new();
 
     let binance_orders = &strategy.exchanges.binance.orders;
+
+    if binance_orders.is_none() {
+        println!("No Binance orders found");
+        return orders;
+    }
+
+    let binance_orders = binance_orders.as_ref().unwrap();
+
     for order in binance_orders {
+        println!("Order: {:?}", order);
         let symbol = format!("{}USDT", order.token.to_uppercase());
 
         // Convert string to OrderSide enum
-        let side = match order.side.as_str() {
+        let side = match order.side.to_uppercase().as_str() {
             "BUY" => crate::executor::binance::OrderSide::Buy,
             "SELL" => crate::executor::binance::OrderSide::Sell,
             _ => continue, // Skip invalid side

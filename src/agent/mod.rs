@@ -26,7 +26,7 @@ pub struct Exchanges {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BinanceExchange {
-    pub orders: Vec<BinanceOrder>,
+    pub orders: Option<Vec<BinanceOrder>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,20 +34,20 @@ pub struct BinanceOrder {
     pub position: String,
     pub token: String,
     pub amount: String,
-    pub price: f64,
+    pub price: String,
     pub side: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EisenExchange {
-    pub swaps: Vec<EisenSwap>,
+    pub swaps: Option<Vec<EisenSwap>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EisenSwap {
     pub token_in: String,
     pub token_out: String,
-    pub amount: f64,
+    pub amount: String,
 }
 
 #[derive(Deserialize, Debug, Serialize)]

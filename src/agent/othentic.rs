@@ -50,6 +50,7 @@ impl OthenticAgent {
             .and_then(|s| s.as_str())
             .unwrap_or("No strategy found");
         // Parse the strategy string to a Strategy struct
+        println!("Strategy from the agent:\n{}", strategy);
         let strategy_struct: Strategy = serde_json::from_str(strategy)
             .map_err(|e| anyhow::anyhow!("Failed to parse strategy: {}", e))?;
 

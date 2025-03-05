@@ -144,7 +144,7 @@ async fn fetch_chain_data(
             )));
         }
     };
-
+    
     let chain_data = match executor::eisen::get_chain_metadata(eisen_base_url, chain_id).await {
         Ok(data) => data,
         Err(err) => {
@@ -188,8 +188,10 @@ pub async fn execute_strategy(
     let provider =
         get_provider(&base_rpc_url).map_err(|e| AppError::internal_error(e.to_string()))?;
     println!("Fetching crypto prices from Binance...");
-    let price_data =
-        format_json(&fetch_prices(&state.binance_base_url, &state.reqwest_cli).await?)?;
+    let price_data = format!(
+        "Market price:\n{}",
+        format_json(&fetch_prices(&state.binance_base_url, &state.reqwest_cli).await?)?
+    );
     println!("Price data: {}", price_data);
     println!("Fetching Binance portfolio data...");
 
@@ -197,16 +199,17 @@ pub async fn execute_strategy(
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
+    println!("Binance portfolio: {:?}", binance_portfolio);
     println!("Wallet address: {}", params.wallet_address);
 
     let chain_data = fetch_chain_data(&state.eisen_base_url, &base_rpc_url)
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
     let onchain_portfolio =
-        executor::eisen::fetch_chain_portfolio(&state.eisen_base_url, 8543, &params.wallet_address)
+        executor::eisen::fetch_chain_portfolio(&state.eisen_base_url, 8453, &params.wallet_address)
             .await
             .map_err(|e| AppError::internal_error(e.to_string()))?;
-    println!("Base chain portfolio: {:?}", onchain_portfolio);
+    println!("Base chain portfolio: {:#?}", onchain_portfolio);
 
     let binance_portfolio_str = format!(
         "{}\n\n{:#?}",
@@ -214,6 +217,10 @@ pub async fn execute_strategy(
         onchain_portfolio
     );
     let othentic_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
+    println!(
+        "Fetching strategy from Othentic... {}\n\n{}",
+        price_data, binance_portfolio_str
+    );
     let strategy = othentic_agent
         .get_strategy(
             &params.model.unwrap_or("o1".to_string()),
@@ -223,7 +230,7 @@ pub async fn execute_strategy(
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
 
-    println!("Strategy: {:?}", strategy);
+    println!("{:#?}", strategy);
     process_binance_place_order(&strategy, &state.binance_base_url, &binance_key)
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
@@ -240,6 +247,7 @@ pub async fn execute_strategy(
     .await
     .map_err(|e| AppError::internal_error(e.to_string()))?;
 
+    println!("Strategy executed");
     // Create a response object that we'll populate
     let response = ExecuteStrategyResponse {
         status: "success".to_string(),

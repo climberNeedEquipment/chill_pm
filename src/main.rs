@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
     dotenv()?;
     let args: cli::Args = cli::Args::parse();
     //  Lets use testnet for now
-    let binance_base_url = "https://testnet_binancefuture.com".to_string();
+    let binance_base_url = "https://testnet.binancefuture.com".to_string();
 
     // Get API credentials from environment variables
     let binance_api_key =
@@ -69,8 +69,6 @@ async fn main() -> Result<()> {
                     header::HeaderName::from_static("access-control-request-method"),
                     header::HeaderName::from_static("access-control-request-headers"),
                 ])
-                // Allow credentials (cookies, etc.)
-                .allow_credentials(true),
         );
 
     // Run the server with CLI-configured host and port

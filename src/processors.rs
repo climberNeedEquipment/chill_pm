@@ -15,9 +15,14 @@ pub async fn process_eisen_swaps(
 ) -> Result<(), Box<dyn Error>> {
     let wallet_addr = wallet_address.parse::<alloy::primitives::Address>()?;
 
-    // Print the swaps that will be executed
-    println!("Swaps to be executed:");
-    for (i, swap) in strategy.exchanges.eisen.swaps.iter().enumerate() {
+    if strategy.exchanges.eisen.swaps.is_none() {
+        println!("No swaps to execute");
+        return Ok(());
+    }
+
+    let swaps = strategy.exchanges.eisen.swaps.as_ref().unwrap(); 
+
+    for (i, swap) in swaps.iter().enumerate() {
         println!(
             "Swap {}: {} -> {} (amount: {})",
             i + 1,
@@ -27,12 +32,7 @@ pub async fn process_eisen_swaps(
         );
     }
 
-    if strategy.exchanges.eisen.swaps.is_empty() {
-        println!("No swaps to execute");
-        return Ok(());
-    }
-
-    for swap in &strategy.exchanges.eisen.swaps {
+    for swap in swaps {
         // Call the quote_and_send_tx function from executor/eisen
         let result = executor::eisen::quote_and_send_tx(
             provider.as_ref(),
@@ -40,7 +40,7 @@ pub async fn process_eisen_swaps(
             chain_data,
             &swap.token_in,
             &swap.token_out,
-            swap.amount,
+            swap.amount.parse::<f64>()?,
             &wallet_addr,
             100, // Default slippage of 1% (100 basis points)
         )

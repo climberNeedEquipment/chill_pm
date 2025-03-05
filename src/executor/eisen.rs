@@ -196,6 +196,7 @@ pub async fn fetch_chain_portfolio(
         base_url, chain_id, wallet_addr
     );
     let client = Client::new();
+    println!("Fetching chain portfolio from {}", url);
     let response = client.get(url).send().await?;
 
     if !response.status().is_success() {
