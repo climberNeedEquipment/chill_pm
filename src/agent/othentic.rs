@@ -54,6 +54,11 @@ impl OthenticAgent {
         let strategy_struct: Strategy = serde_json::from_str(strategy)
             .map_err(|e| anyhow::anyhow!("Failed to parse strategy: {}", e))?;
 
+        // Pretty print the strategy struct as JSON
+        let pretty_json = serde_json::to_string_pretty(&strategy_struct)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize strategy to pretty JSON: {}", e))?;
+        
+        println!("Strategy as pretty JSON:\n{}", pretty_json);
         // Return the original JSON value
         Ok(strategy_struct)
     }
