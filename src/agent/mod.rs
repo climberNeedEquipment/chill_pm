@@ -22,6 +22,13 @@ pub struct Message {
 pub struct Exchanges {
     pub binance: BinanceExchange,
     pub eisen: EisenExchange,
+    pub explanation: Vec<Explanation>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Explanation {
+    pub title: String,
+    pub content: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

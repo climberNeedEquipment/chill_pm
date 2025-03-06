@@ -52,6 +52,7 @@ async fn main() -> Result<()> {
         .route("/health", get(handlers::health_check))
         .route("/api/v1/execute", post(handlers::execute_strategy))
         .route("/api/v1/portfolio", get(handlers::get_portfolio))
+        .route("/api/v1/yields", get(handlers::get_yields))
         .with_state(state)
         .layer(
             // Configure CORS middleware

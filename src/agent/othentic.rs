@@ -25,6 +25,7 @@ impl OthenticAgent {
         model: &String,
         price: &String,
         portfolio: &String,
+        apr: &String,
     ) -> Result<Strategy> {
         let url = format!("http://{}:{}/task/execute", self.host, self.port);
 
@@ -35,6 +36,7 @@ impl OthenticAgent {
                 "model": model,
                 "price": price,
                 "portfolio": portfolio,
+                "apr": apr,
                 "taskDefinitionId": self.task_definition_id
             }))
             .send()

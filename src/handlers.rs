@@ -12,6 +12,11 @@ use crate::types;
 use crate::types::MarketPrices;
 use crate::utils::format;
 use crate::utils::sign::BinanceKey;
+use crate::yields::Yield;
+use crate::yields::CombinedYields;
+use crate::yields::CombinedYieldFetcher;
+use crate::yields::APR;
+use crate::yields::{Aave, Eigen, Lido};
 use alloy::network::EthereumWallet;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
@@ -193,21 +198,30 @@ pub async fn execute_strategy(
             .map_err(|e| AppError::internal_error(e.to_string()))?;
     println!("Base chain portfolio: {:#?}", onchain_portfolio);
 
-    let binance_portfolio_str = format!(
+    let portfolio_str = format!(
         "{}\n\n{:#?}",
         format::format_binance_portfolio(&binance_portfolio),
         onchain_portfolio
     );
+
+    println!("Fetching yields");
+
+    let yield_fetcher = CombinedYieldFetcher::new();
+    let yields = yield_fetcher.get_apr().await.map_err(|e| AppError::internal_error(e.to_string()))?;
+    let yield_str = format!("Yields: {}", yields);
+    println!("Yields: {}", yield_str);
+
     let othentic_agent = OthenticAgent::new("localhost".to_string(), 4003, Some("0".to_string()));
     println!(
-        "Fetching strategy from Othentic... {}\n\n{}",
-        price_data, binance_portfolio_str
+        "Fetching strategy from Othentic... \n\n{}\n\n{}\n\n{}",
+        price_data, portfolio_str, yield_str
     );
     let strategy = othentic_agent
         .get_strategy(
             &params.model.unwrap_or("o1".to_string()),
             &price_data,
-            &binance_portfolio_str,
+            &portfolio_str,
+            &yield_str,
         )
         .await
         .map_err(|e| AppError::internal_error(e.to_string()))?;
@@ -290,4 +304,27 @@ pub async fn get_portfolio(
     };
 
     Ok((StatusCode::OK, Json(response)))
+}
+
+#[derive(Debug, Serialize)]
+pub struct GetYieldsResponse {
+    pub status: String,
+    pub message: String,
+    pub yields: CombinedYields
+}
+
+pub async fn get_yields() -> Result<impl IntoResponse, AppError> {
+
+    let combined_yield_fetcher = CombinedYieldFetcher::new();
+
+    let yields = combined_yield_fetcher.get_apr().await.map_err(|e| AppError::internal_error(e.to_string()))?;
+
+    Ok((
+        StatusCode::OK,
+        Json(GetYieldsResponse {
+            status: "success".to_string(),
+            message: "Yields fetched".to_string(),
+            yields,
+        }),
+    ))
 }
