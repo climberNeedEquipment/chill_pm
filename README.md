@@ -1,6 +1,6 @@
 # Chill PM (Chill Paper Maker)
 
-Welcome to **Chill PM**, an AI-driven agent that helps you create **delta-neutral yield farming strategies** across both centralized (CEX) and decentralized (DEX) exchanges. The goal is to optimize yield by combining real-time on-chain/off-chain data, historical metrics, and AI-driven portfolio recommendations—all while ensuring trust and security through AVS (Attestation/Validating Services) and TEE (Trusted Execution Environment) layers.
+Welcome to **Chill PM**, an AI-driven agent that helps you create **delta-neutral yield farming strategies** across both centralized (CEX) and decentralized (DEX) exchanges. The goal is to optimize yield by combining real-time on-chain/off-chain data, historical metrics, and AI-driven portfolio recommendations—all while ensuring trust and security through AVS (Autonomous Verifiable Services) layers.
 
 ---
 
