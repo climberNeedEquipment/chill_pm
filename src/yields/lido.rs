@@ -66,7 +66,7 @@ impl Yield for Lido {
     async fn get_apr(&self) -> Result<Vec<APR>, Box<dyn Error>> {
         let apr = fetch_steth_apr().await?;
         Ok(vec![APR {
-            symbol: "stETH".to_string(),
+            symbol: "wstETH".to_string(),
             deposit_apr: apr,
             borrow_apr: None,
         }])

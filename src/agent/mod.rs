@@ -22,7 +22,6 @@ pub struct Message {
 pub struct Exchanges {
     pub binance: BinanceExchange,
     pub eisen: EisenExchange,
-    pub explanation: Vec<Explanation>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,4 +60,5 @@ pub struct EisenSwap {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct Strategy {
     pub exchanges: Exchanges,
+    pub explanations: Vec<Explanation>,
 }

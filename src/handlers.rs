@@ -204,8 +204,7 @@ pub async fn execute_strategy(
         onchain_portfolio
     );
 
-    println!("Fetching yields");
-
+    println!("Fetching yields...");
     let yield_fetcher = CombinedYieldFetcher::new();
     let yields = yield_fetcher.get_apr().await.map_err(|e| AppError::internal_error(e.to_string()))?;
     let yield_str = format!("Yields: {}", yields);
@@ -307,6 +306,7 @@ pub async fn get_portfolio(
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetYieldsResponse {
     pub status: String,
     pub message: String,

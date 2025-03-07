@@ -10,6 +10,7 @@ pub use eigen_layer::*;
 pub use lido::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct APR {
     pub symbol: String,
     pub deposit_apr: f64,
